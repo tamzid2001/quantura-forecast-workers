@@ -425,6 +425,7 @@ def command_universe(args: argparse.Namespace) -> int:
     runtime_seconds = round(time.monotonic() - started, 2)
     payload = {
         "schema_version": SCHEMA_VERSION,
+        "forecast_config_hash": configuration_hash(),
         "scan_date": scan_date,
         "session_close": getattr(args, "session_close", None),
         "generated_at": iso_now(),
@@ -787,6 +788,7 @@ def coverage_manifest(universe: Mapping[str, Any], rows: Sequence[Mapping[str, A
     eligible = max(0, len(rows) - counts["unsupported"])
     coverage = counts["success"] / eligible if eligible else 0.0
     return {
+        "forecast_config_hash": configuration_hash(), "ensemble_profile": "optimized_seven",
         "schema_version": SCHEMA_VERSION,
         "status": "complete" if coverage >= threshold else "degraded",
         "scan_date": universe.get("scan_date"),
@@ -808,7 +810,7 @@ def coverage_manifest(universe: Mapping[str, Any], rows: Sequence[Mapping[str, A
         "coverage_ok": coverage >= threshold,
         "runtime_seconds": round(time.monotonic() - started, 2),
         "actual_price_definition": "Completed split-adjusted Alpaca daily close for the selected NYSE session, using consolidated historical SIP by default. Missing latest-session bars are reported, not replaced with an older close.",
-        "forecast_methodology": "Five-model ensemble through the selected completed NYSE close; next seven NYSE sessions; 20% central weights, tails renormalized; Toto 4M; split-adjusted price basis.",
+        "forecast_methodology": "Optimized seven-model ensemble through the selected completed NYSE close; next seven NYSE sessions; chronologically calibrated automatic weights, tails renormalized; Toto 4M; split-adjusted price basis.",
         "market_cap_convention": "Mega ≥ $200B; Large $10B–$200B; Mid $2B–$10B; Small $300M–$2B; Micro < $300M. ETFs are unclassified.",
         "earnings_source": (universe.get("earnings") or {}).get("source") or "unavailable",
     }

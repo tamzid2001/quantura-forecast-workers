@@ -26,14 +26,13 @@ GAME_QUANTILES = (.01, .25, .5, .75, .9, .99)
 def game_models(observations, timesfm_available=None):
     from ensemble_forecasting.capabilities import MODEL_REGISTRY, timesfm_availability
     available = timesfm_availability("production")[0] if timesfm_available is None else timesfm_available
-    models = ["prophet", "granite", "chronos"]
-    if available:
-        models.append("timesfm")
-    if observations >= MODEL_REGISTRY["models"]["toto"]["minimumObservedContext"]:
-        models.append("toto")
-    if len(models) < 4:
-        raise ValueError("INSUFFICIENT_HISTORY_FOR_FOUR_AVAILABLE_MODELS")
-    return tuple(models)
+    if not available:
+        raise ValueError("SEVEN_MODEL_RUNTIME_UNAVAILABLE")
+    models = ("prophet", "toto", "granite", "chronos", "timesfm", "timestral", "t0")
+    minimum = max(int(MODEL_REGISTRY["models"][name].get("minimumObservedContext", 2)) for name in models)
+    if observations < minimum:
+        raise ValueError("INSUFFICIENT_HISTORY_FOR_SEVEN_MODELS")
+    return models
 
 
 def game_date(seconds):
@@ -71,12 +70,15 @@ def document(contract, forecast, now, original=None):
     original_generated = stamp(original.get("original_generated_at") or original["generated_at"]) if original else None
     if original and (game_date(start) != original.get("game_date", game_date(now)) or original_generated >= start // 3600 * 3600 or forecast["origin"] > original_generated):
         raise ValueError("ORIGINAL_CUTOFF_NOT_PREGAME")
+    completed = {m["id"] for m in forecast.get("models", []) if m.get("status") == "completed"}
+    if completed != set(game_models(forecast.get("history_count", 0))) or forecast.get("configuration", {}).get("weight_mode") != "auto" or forecast.get("weighting", {}).get("policy") != "rolling_loss_selection_v2":
+        raise ValueError("OPTIMIZED_SEVEN_MODEL_FORECAST_REQUIRED")
     end = start + 4 * 3600
     rows = through_deadline(forecast["rows"], forecast["origin"], forecast["input_snapshot"][-1]["target"], end)
     identity = digest({"source": contract["source"], "contract_id": contract["contractId"]})[:32]
     return {
         "id": identity, "provider": contract["source"], "contract_id": contract["contractId"],
-        "schema_version": 2, "symbol": contract["providerSymbol"], "event_id": contract["eventId"],
+        "schema_version": 3, "symbol": contract["providerSymbol"], "event_id": contract["eventId"],
         "event_slug": contract.get("eventSlug"), "side": contract.get("side"), "market_id": contract.get("marketId"),
         "event_title": contract["eventTitle"], "outcome": contract["outcome"],
         "market_title": contract.get("marketTitle"), "market_type": contract.get("marketType"),
@@ -89,11 +91,12 @@ def document(contract, forecast, now, original=None):
         "history_start": iso(forecast["history_start"]), "history_count": forecast["history_count"],
         "history_gap_count": forecast["history_gap_count"], "frequency": "1h",
         "models": [m["id"] for m in forecast["models"] if m["status"] == "completed"],
-        "effective_weights_by_quantile": forecast["weights"], "model_versions": forecast["model_versions"],
+        "effective_weights_by_quantile": forecast["weights"], "weight_mode": "auto",
+        "weight_policy": "rolling_loss_selection_v2", "weighting": forecast.get("weighting"), "model_versions": forecast["model_versions"],
         "warnings": forecast["warnings"], "predictions": [{**r, "timestamp": iso(r["timestamp"])} for r in rows],
         "observations": [{"timestamp": r["timestamp"], "price": r["target"]} for r in forecast["input_snapshot"]],
         "expires_at": datetime.fromtimestamp(end + 2 * 86400, timezone.utc),
-        "method": "Ten days of genuine completed hourly pregame observations. Four models for 2–31 observations with approved TimesFM; five from 32 observations (or four without TimesFM). Equal weights renormalized separately for each supported quantile; Toto/TimesFM tails are never extrapolated. Logit probability ensemble; missing hours stay missing. Final partial-hour model point is interpolated.",
+        "method": "Seven-model ensemble (Prophet, Toto 4M, Granite, Chronos, TimesFM, Timestral, T0-gamma). Automatic chronological loss selection uses four calibration windows and a separate audit; short history explicitly reports fallback weights. Probability-space pooling when calibrated, with an explicit transformed-space fallback. Only genuine completed pregame hours; no missing hours are filled. Toto/TimesFM never extrapolate tails. Final partial-hour point is interpolated.",
     }
 
 
@@ -195,7 +198,7 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
                 previous_handler = signal.signal(signal.SIGALRM, stop_at_start_hour)
                 signal.setitimer(signal.ITIMER_REAL, seconds_left)
                 try:
-                    forecast = forecast_window(quotes, horizon, models=game_models(len(quotes)), quantiles=GAME_QUANTILES, frequency="1h", failure_policy="fail")
+                    forecast = forecast_window(quotes, horizon, models=game_models(len(quotes)), quantiles=GAME_QUANTILES, frequency="1h", failure_policy="fail", weight_mode="auto")
                 finally:
                     signal.setitimer(signal.ITIMER_REAL, 0)
                     signal.signal(signal.SIGALRM, previous_handler)

@@ -1,4 +1,4 @@
-"""Reuse the production five-adapter registry and per-quantile ensemble engine."""
+"""Reuse the versioned production adapter registry and per-quantile ensemble engine."""
 
 from __future__ import annotations
 
@@ -22,7 +22,10 @@ def forecast_window(
     models: tuple[str, ...] | None = None,
     quantiles: tuple[float, ...] = QUANTILES,
     *, single_point_research: bool = False, failure_policy: str | None = None, frequency: str = "1min",
+    weight_mode: str = "manual",
 ) -> dict:
+    if weight_mode not in {"manual", "auto"}:
+        raise ValueError("INVALID_WEIGHT_MODE")
     if frequency not in {"1min", "1h"} or (single_point_research and frequency != "1min"):
         raise ValueError("INVALID_RESEARCH_FREQUENCY")
     interval_seconds = 3600 if frequency == "1h" else 60
@@ -67,19 +70,22 @@ def forecast_window(
         "horizon_mode": "frequency_periods",
         "frequency": frequency,
         "calendar": "NONE",
-        "transform": "none",
+        "transform": "logit" if weight_mode == "auto" else "none",
         "context_length": 500,
         "failure_policy": "fail" if single_point_research else (failure_policy or "renormalize"),
         "quantiles": list(quantiles),
         "models": {m: {"enabled": True, "weight": 1} for m in models},
     }
+    if weight_mode == "auto":
+        configuration.update(weight_mode="auto", toto_variant="4m")
     seed = int(digest(source)[:8], 16)
     np.random.seed(seed)
     started = time.monotonic()
     result = execute_job(
         {
             "request": configuration,
-            "input": {"rows": logits, "frequency": frequency},
+            "input": {"rows": source if weight_mode == "auto" else logits, "frequency": frequency},
+            **({"weight_policy": "rolling_loss_selection_v2"} if weight_mode == "auto" else {}),
             "runtime_mode": "production",
         },
         minimum_history_rows=1 if single_point_research else 2,
@@ -103,7 +109,7 @@ def forecast_window(
         values = {}
         for q in quantiles:
             x = float(row["quantiles"][str(q)])
-            values[str(q)] = (
+            values[str(q)] = x if weight_mode == "auto" else (
                 float(1 / (1 + np.exp(-x)))
                 if x >= 0
                 else float(np.exp(x) / (1 + np.exp(x)))
@@ -150,6 +156,7 @@ def forecast_window(
         "model_versions": versions,
         "history_quality": quality,
         "configuration": configuration,
+        **({"weighting": result.get("weighting")} if weight_mode == "auto" else {}),
         "transform": "logit_inverse_logit",
         "epsilon": 1e-6,
         "rows": rows,

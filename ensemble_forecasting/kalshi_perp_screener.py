@@ -20,7 +20,7 @@ import requests
 from scripts.weekly_screener import weekly_configuration
 
 ORIGIN = "https://api.elections.kalshi.com/trade-api/v2"
-ENGINE = "quantura_perps_daily_ensemble_v2"
+ENGINE = "quantura_perps_daily_ensemble_v3"
 QUANTILES = (.01, .25, .5, .75, .9, .99)
 NAMES = ("p01", "p25", "p50", "p75", "p90", "p99")
 
@@ -57,7 +57,9 @@ def build_snapshot(market, history, result, generated_at):
     expected = set(config["models"])
     completed = {m["id"] for m in result.get("models", []) if m.get("status") == "completed"}
     if completed != expected or result.get("failures"):
-        raise ValueError("ALL_FIVE_MODELS_REQUIRED")
+        raise ValueError("ALL_SEVEN_MODELS_REQUIRED")
+    if result.get("weighting", {}).get("policy") != config["weight_policy"] or result.get("weighting", {}).get("mode") != "auto":
+        raise ValueError("AUTOMATIC_SEVEN_MODEL_WEIGHTS_REQUIRED")
     predictions = result.get("predictions", [])
     if len(predictions) != 7:
         raise ValueError("INVALID_HORIZON")
@@ -76,7 +78,7 @@ def build_snapshot(market, history, result, generated_at):
             "scan_id": f"perps-{identity}", "forecast_config": config, "forecast_config_hash": config_hash,
             "forecast_input_gzip": base64.b64encode(gzip.compress(json.dumps([[r["timestamp"], r["target"]] for r in history], separators=(",", ":")).encode(), mtime=0)).decode(),
             "forecast_rows": rows, "forecast_models": result["models"], "effective_weights_by_quantile": result["effective_weights_by_quantile"],
-            "forecast_provenance": {key: result.get(key) for key in ("result_hash", "prepared_series_hash", "runtime_seconds", "runtime", "warnings")},
+            "forecast_provenance": {key: result.get(key) for key in ("result_hash", "prepared_series_hash", "runtime_seconds", "runtime", "warnings", "weighting", "historical_validation")},
             "dataset_hash": result["dataset_hash"], "history_cutoff_at": history[-1]["timestamp"], "forecast_history_points": len(history),
             "last_forecast_update": generated_at, "forecast_date": rows[-1]["date"],
             "quantile_stats": {q: {"min": min(r[q] for r in rows), "max": max(r[q] for r in rows), "avg": sum(r[q] for r in rows)/len(rows)} for q in NAMES},
@@ -128,14 +130,14 @@ def run(shard=0, shards=1, discovery_only=False):
             if datetime.fromisoformat(history[-1]["timestamp"].replace("Z", "+00:00")).timestamp() < cutoff-2*86400:
                 raise ValueError("DAILY_HISTORY_NOT_CURRENT")
             previous = snapshots.get(market["ticker"], {})
-            if previous.get("history_cutoff_at") == history[-1]["timestamp"] and previous.get("forecast_engine") == ENGINE:
+            if previous.get("history_cutoff_at") == history[-1]["timestamp"] and previous.get("forecast_engine") == ENGINE and previous.get("forecast_config") == config:
                 report["successful"] += 1; continue
             needs_models = True
             if discovery_only:
                 continue
             from ensemble_forecasting.worker import execute_job
             request = {key: value for key, value in config.items() if key not in {"model_checkpoints", "model_revisions", "history_lag_sessions", "adjustment", "model_failure_policy"}}
-            result = execute_job({"request": request, "source": {"type": "kalshi_perp", "symbol": market["ticker"], "provider": "kalshi_perps"}, "runtime_mode": "production",
+            result = execute_job({"request": request, "source": {"type": "kalshi_perp", "symbol": market["ticker"], "provider": "kalshi_perps"}, "runtime_mode": "production", "weight_policy": config["weight_policy"],
                                   "model_checkpoints": config["model_checkpoints"], "model_revisions": config["model_revisions"],
                                   "input": {"rows": history, "frequency": "1D", "timezone": "UTC"}}, minimum_history_rows=32)
             snapshot = build_snapshot(market, history, result, datetime.now(timezone.utc).isoformat())
@@ -150,7 +152,7 @@ def run(shard=0, shards=1, discovery_only=False):
             print(json.dumps(report["failures"][-1]), flush=True)
     report["updated_at"] = datetime.now(timezone.utc).isoformat()
     # The catalog is rediscovered hourly. Unchanged completed daily cutoffs reuse
-    # their five-model forecast, so newly listed contracts are detected cheaply.
+    # their seven-model forecast, so newly listed contracts are detected cheaply.
     report["new_listings"] = sorted(active - {m.get("ticker") for m in stored.get("catalog", [])})
     report["needs_models"] = needs_models
     report["discovery_only"] = discovery_only

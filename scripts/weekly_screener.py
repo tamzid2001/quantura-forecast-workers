@@ -1,4 +1,4 @@
-"""Shared five-model screener specification and exchange-session input selection.
+"""Shared optimized seven-model screener specification and exchange-session input selection.
 
 No drift/synthetic fallback. Model failures leave the prior validated release intact.
 """
@@ -15,7 +15,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 QUANTILES = (0.01, 0.10, 0.25, 0.50, 0.75, 0.90, 0.99)
 QUANTILE_NAMES = ("p01", "p10", "p25", "p50", "p75", "p90", "p99")
-ENGINE = "quantura_weekly_ensemble_v2"
+ENGINE = "quantura_weekly_ensemble_v3"
 
 
 def weekly_configuration() -> dict[str, Any]:
@@ -23,14 +23,16 @@ def weekly_configuration() -> dict[str, Any]:
     # capabilities loads pandas/pydantic and broke the lightweight aggregate job.
     registry = Path(os.environ.get("QUANTURA_ENSEMBLE_MODEL_REGISTRY") or
                     Path(__file__).resolve().parents[1] / "quantura_site/functions_explore/src/ensembleModelRegistry.json")
-    available = json.loads(registry.read_text(encoding="utf-8"))["models"]
+    registry_data = json.loads(registry.read_text(encoding="utf-8"))
+    available = registry_data["models"]
     # Versioned screener profile: adding an interactive model must not alter it.
-    models = {name: available[name] for name in ("prophet", "toto", "granite", "chronos", "timesfm")}
+    models = {name: available[name] for name in ("prophet", "toto", "granite", "chronos", "timesfm", "timestral", "t0")}
     toto = next(item for item in models["toto"]["variants"] if item["id"] == "4m")
     return {
         "prediction_length": 7, "horizon_mode": "trading_sessions", "frequency": "1D", "calendar": "NYSE",
         "quantiles": list(QUANTILES), "context_length": 512, "transform": "log", "model_failure_policy": "fail",
-        "models": {name: {"enabled": True, "weight": 0.2} for name in models},
+        "models": {name: {"enabled": True, "weight": 1} for name in models},
+        "weight_mode": "auto", "weight_policy": registry_data["autoWeightPolicy"],
         "toto_variant": "4m", "history_lag_sessions": 0, "adjustment": "split",
         "model_checkpoints": {name: (toto if name == "toto" else model).get("checkpoint") for name, model in models.items()},
         "model_revisions": {name: (toto if name == "toto" else model)["checkpointRevision"] for name, model in models.items() if (toto if name == "toto" else model).get("checkpointRevision")},
@@ -69,12 +71,15 @@ def build_weekly_forecast(history: Sequence[Mapping[str, Any]], *, now: dt.datet
     if len(training) < 32:
         return None
     config = weekly_configuration()
-    job = {"request": config, "runtime_mode": "production",
+    job = {"request": config, "runtime_mode": "production", "weight_policy": config["weight_policy"],
            "model_checkpoints": config["model_checkpoints"], "model_revisions": config["model_revisions"],
            "input": {"rows": [{"timestamp": r["timestamp"], "target": r["close"]} for r in training], "frequency": "1D", "timezone": "UTC"}}
     result = (execute or execute_job)(job, minimum_history_rows=32)
     if result.get("runtime", {}).get("mock") and execute is None:
         raise ValueError("mock_screener_output_forbidden")
+    completed = {m["id"] for m in result.get("models", []) if m.get("status") == "completed"}
+    if completed != set(config["models"]) or result.get("weighting", {}).get("policy") != config["weight_policy"] or result.get("weighting", {}).get("mode") != "auto":
+        raise ValueError("optimized_seven_model_forecast_required")
     predictions = result["predictions"]
     if len(predictions) != 7:
         raise ValueError("weekly_screener_horizon_mismatch")
@@ -96,5 +101,5 @@ def build_weekly_forecast(history: Sequence[Mapping[str, Any]], *, now: dt.datet
             "forecast_models": result["models"], "effective_weights_by_quantile": result["effective_weights_by_quantile"],
             "dataset_hash": result["dataset_hash"],
             "forecast_input_gzip": base64.b64encode(gzip.compress(json.dumps([[r["timestamp"], r["close"]] for r in training], separators=(",", ":")).encode(), mtime=0)).decode(),
-            "forecast_provenance": {key: result.get(key) for key in ("result_hash", "prepared_series_hash", "runtime_seconds", "runtime", "warnings")},
+            "forecast_provenance": {key: result.get(key) for key in ("result_hash", "prepared_series_hash", "runtime_seconds", "runtime", "warnings", "weighting", "historical_validation")},
             "general_bias": None, "unusual_p50_count": 0, "p10_signal_active": False}

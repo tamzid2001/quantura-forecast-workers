@@ -1,3 +1,4 @@
+import {optimizedScreenerProfile} from "./screenerEnsembleProfile";
 import type { QuantScreenerRow } from "./quantScreener";
 import { screenerCutoff } from "./screenerHistory";
 
@@ -24,20 +25,22 @@ export function decorateScreenerRow(row: QuantScreenerRow, _quote?: ScreenerQuot
   const rows=forecastRows(row),first=rows[0],last=rows.at(-1),cutoff=screenerCutoff(row.forecast_input_gzip);
   const config=row.forecast_config as Record<string,any>|undefined;
   const names=["prophet","toto","granite","chronos","timesfm"];
-  const configured=config?.history_lag_sessions===0 && config?.toto_variant==="4m" && names.every(name=>config?.models?.[name]?.enabled===true && config.models[name].weight===0.2) && Object.keys(config?.models||{}).length===5;
+  const legacyConfigured=config?.history_lag_sessions===0 && config?.toto_variant==="4m" && names.every(name=>config?.models?.[name]?.enabled===true && config.models[name].weight===0.2) && Object.keys(config?.models||{}).length===5;
+  const optimized = optimizedScreenerProfile(config,row.forecast_models,(row.forecast_provenance as any)?.weighting);
+  const configured = config?.history_lag_sessions===0 && (row.forecast_engine==="quantura_weekly_ensemble_v3" ? optimized : legacyConfigured);
   const splitMismatch=row.split_status==="requires_refresh"||row.split_status==="unverified";
   const historical=typeof row.actual_price==="number" && Number.isFinite(row.actual_price) ? row.actual_price : null;
   const closeTime=Date.parse(String(row.daily_close_at||""));
   const quantileKeys=["p01","p10","p25","p50","p75","p90","p99"];
   const aligned=rows.every((r,i)=>quantileKeys.every((key,j)=>typeof r[key]==="number" && Number.isFinite(r[key]) && (j===0 || Number(r[key])>=Number(r[quantileKeys[j-1]]))) && (!i || r.date>rows[i-1].date));
-  const valid=row.forecast_engine==="quantura_weekly_ensemble_v2" && configured && aligned && !splitMismatch && rows.length===7 && cutoff && first && last &&
+  const valid=["quantura_weekly_ensemble_v2","quantura_weekly_ensemble_v3"].includes(String(row.forecast_engine)) && configured && aligned && !splitMismatch && rows.length===7 && cutoff && first && last &&
     typeof first.p99==="number" && Number.isFinite(first.p99) && first.p99>=first.p90 && typeof last.p99==="number" && Number.isFinite(last.p99) &&
     cutoff.target>0 && historical!==null && Math.abs(cutoff.target-historical)<=0.000001 && String(row.actual_price_timestamp).slice(0,10)===cutoff.timestamp.slice(0,10) &&
     Date.parse(cutoff.timestamp)<Date.parse(first.timestamp) && Date.parse(String(row.history_cutoff_at))===Date.parse(cutoff.timestamp) && closeTime<=now && closeTime<=Date.parse(String(row.last_forecast_update));
   const signal:ScreenerSignal|null=valid?{value:cutoff.target>(first.p99 as number)?"buy":"neutral",price:cutoff.target,quote_timestamp:String(row.daily_close_at),
     forecast_date:first.date,input_date:cutoff.timestamp.slice(0,10),target_date:last.date,p10:first.p10,p90:first.p90,p99:first.p99 as number,price_target:last.p99 as number,
     rule:"daily_close_above_first_p99_v2",source:"split_adjusted_daily_close",provisional:false}:null;
-  const output:QuantScreenerRow={...row,...saved,cutoff_p99_signal:signal,current_signal:signal?.value==="buy"?signal:null,signal:signal?.value==="buy"?"buy":"none",
+  const output:QuantScreenerRow={...row,...saved,ensemble_profile:optimized?"optimized_seven":"legacy_five",cutoff_p99_signal:signal,current_signal:signal?.value==="buy"?signal:null,signal:signal?.value==="buy"?"buy":"none",
     signal_status:splitMismatch?"split_basis_requires_refresh":signal?"daily_close_evaluated":"daily_scan_requires_refresh",
     actual_price:historical,actual_price_timestamp:row.daily_close_at||row.actual_price_timestamp||null,quote_source:"split_adjusted_daily_close",quote_session:"regular",
     forecast_comparison_date:first?.date||null,signal_comparison:"latest_completed_daily_close_to_first_p99",

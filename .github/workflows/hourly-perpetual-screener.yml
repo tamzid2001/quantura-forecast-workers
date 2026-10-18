@@ -1,4 +1,4 @@
-name: Daily Kalshi perpetual screener — five-model ensemble
+name: Daily Kalshi perpetual screener — optimized seven-model ensemble
 on:
   schedule:
     - cron: '13 * * * *'

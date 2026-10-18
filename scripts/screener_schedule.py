@@ -26,7 +26,11 @@ def publication_date(manifest: dict) -> str:
     date = manifest.get("scan_date")
     if not isinstance(date, str) or dt.date.fromisoformat(date).isoformat() != date:
         raise ValueError("Invalid published scan date")
-    return date
+    try:
+        from scripts.weekly_screener import configuration_hash
+    except ModuleNotFoundError:
+        from weekly_screener import configuration_hash
+    return date if manifest.get("forecast_config_hash") == configuration_hash() else ""
 
 
 def scan_plan(now: dt.datetime, published_date: str = "", *, manual: bool = False) -> dict[str, str | bool]:
