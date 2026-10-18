@@ -161,8 +161,8 @@ jobs:
       max-parallel: 8
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     env:
-      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
-      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      QUANTURA_SCREENER_DATA_URL: https://quantura.studio/api/internal/screener/market-data
+      QUANTURA_SCREENER_PUBLISH_TOKEN: ${{ secrets.QUANTURA_SCREENER_PUBLISH_TOKEN }}
       ALPACA_DATA_URL: ${{ vars.ALPACA_DATA_URL || 'https://data.alpaca.markets' }}
       ALPACA_DATA_FEED: ${{ vars.SCREENER_ALPACA_DATA_FEED || 'sip' }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}

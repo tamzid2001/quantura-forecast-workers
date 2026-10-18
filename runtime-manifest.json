@@ -1,11 +1,11 @@
 {
-  "source_commit": "4e72f53b4d3a643d8c66d45acd1cb5138fa91297",
+  "source_commit": "c88fd7df0572610dc89d994b2bbad8bb0c6f9540",
   "files": {
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
     ".github/workflows/hourly-game-screener.yml": "b97776a948ba8bd403872f2cc92b44ba11525ae91c1ed9a268ae7566513ae07a",
     ".github/workflows/hourly-perpetual-screener.yml": "760ce7678db977660fffa291f2ddb5df46051e9a55900a639d7b3ca7d8908334",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
-    ".github/workflows/stock-screener.yml": "1a61da4bcd2346c5d73efcda93a51edabdb446a8fd6bce4369a6b34066d02a35",
+    ".github/workflows/stock-screener.yml": "1ed9060c9e70b198ffc9dcfe9f7967f90b44a1c54659d42e8d7649c937c45a63",
     ".gitignore": "c664a956f79ec3fb71fce6dbd6fe424ce3ff7bfabb564bb6c62b17ca798bfebc",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
     "README.md": "ab34079ea172a6bcdde5a1daeaa50bc9748c928f2d92196f45df3fce197cc3b3",
@@ -52,7 +52,7 @@
     "requirements-ensemble-forecast.lock": "825f9397e09304a4b944e6f695886bebebb73370640fbe93222458c6575df3d1",
     "requirements-screener-marketdata.lock": "5e14c15d1a7c6d8c3e65e90d4ef942df87f6326854e87dcc9cdcc4885f537b6d",
     "scripts/ensemble_worker_bootstrap.py": "cf2683b9efcc25fc45a42ad6dde1b24ac0654639fc88646a8d86d20a8dff64d8",
-    "scripts/quant_screener_pipeline.py": "0c990c7b8c3f813d2a2b3b6ea5d0b39b2c71de7c786eb3430002da1964299b58",
+    "scripts/quant_screener_pipeline.py": "b13eb44328e370d4d9d6bfabeffb427ce4bd91c69c899814d035ede26d7303a2",
     "scripts/screener_schedule.py": "12cf7c79e3c0d0778fa5780c1855bba3b971537fa2d7e0f7fca1a0c44536e30d",
     "scripts/weekly_screener.py": "de456757fd23dda507b7774038059a39909da97ab5e5e1ee34b7a3904f3dee75"
   }

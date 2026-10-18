@@ -503,7 +503,11 @@ def normalize_bar(timestamp: Any, close: Any) -> dict[str, Any] | None:
 def fetch_alpaca_histories(symbols: Sequence[str], start: str, end: str) -> dict[str, list[dict[str, Any]]]:
     key = str(os.getenv("ALPACA_API_KEY") or os.getenv("APCA_API_KEY_ID") or "").strip()
     secret = str(os.getenv("ALPACA_SECRET_KEY") or os.getenv("APCA_API_SECRET_KEY") or "").strip()
-    if not key or not secret:
+    gateway = str(os.getenv("QUANTURA_SCREENER_DATA_URL") or "").strip()
+    gateway_token = str(os.getenv("QUANTURA_SCREENER_PUBLISH_TOKEN") or "").strip()
+    if gateway and (gateway != "https://quantura.studio/api/internal/screener/market-data" or not gateway_token):
+        raise RuntimeError("screener_gateway_configuration_invalid")
+    if not gateway and (not key or not secret):
         raise RuntimeError("alpaca_credentials_unavailable")
     base_url = str(os.getenv("ALPACA_DATA_URL") or os.getenv("ALPACA_DATA_BASE") or ALPACA_DATA_URL).strip().rstrip("/")
     output: dict[str, list[dict[str, Any]]] = {symbol: [] for symbol in symbols}
@@ -529,7 +533,13 @@ def fetch_alpaca_histories(symbols: Sequence[str], start: str, end: str) -> dict
             }
             if page_token:
                 params["page_token"] = page_token
-            response = request_with_retry("GET", f"{base_url}/v2/stocks/bars", params=params, headers=headers)
+            if gateway:
+                # Reuse the backend's current provider credentials without copying
+                # them into the public execution repository or request logs.
+                body = {"symbols": batch, "start": params["start"], "end": params["end"], "page_token": page_token}
+                response = request_with_retry("POST", gateway, json=body, headers={"Authorization": f"Bearer {gateway_token}", "User-Agent": USER_AGENT})
+            else:
+                response = request_with_retry("GET", f"{base_url}/v2/stocks/bars", params=params, headers=headers)
             payload = response.json()
             bars_by_symbol = payload.get("bars") or {}
             for symbol, bars in bars_by_symbol.items():
