@@ -28,7 +28,7 @@ jobs:
       QUANTURA_WORKER_API_BASE: https://quantura.studio
       QUANTURA_ENSEMBLE_WORKER_TOKEN: ${{ secrets.QUANTURA_ENSEMBLE_WORKER_TOKEN }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HF_HOME: ${{ runner.temp }}/huggingface
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
       HF_HUB_DISABLE_TELEMETRY: '1'
       HF_HUB_DISABLE_PROGRESS_BARS: '1'
       TOKENIZERS_PARALLELISM: 'false'
