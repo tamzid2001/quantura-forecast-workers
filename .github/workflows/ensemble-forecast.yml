@@ -57,6 +57,9 @@ jobs:
       - name: Report startup or execution failure
         if: failure()
         run: python scripts/ensemble_worker_bootstrap.py --job-file "$RUNNER_TEMP/private-forecast/job.json" --notify-failure
+      - name: Report cancellation from GitHub
+        if: cancelled()
+        run: python scripts/ensemble_worker_bootstrap.py --job-file "$RUNNER_TEMP/private-forecast/job.json" --notify-failure --canceled
       - name: Remove private inputs and transient model files
         if: always()
         run: rm -rf "$RUNNER_TEMP/private-forecast" "$RUNNER_TEMP/forecast.log" "$RUNNER_TEMP/install.log" "$HF_HOME"

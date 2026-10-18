@@ -15,6 +15,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--job-file", required=True)
     parser.add_argument("--notify-failure", action="store_true")
+    parser.add_argument("--canceled", action="store_true")
     args = parser.parse_args()
     job_id = os.environ.get("FORECAST_JOB_ID", "")
     token = os.environ.get("QUANTURA_ENSEMBLE_WORKER_TOKEN", "")
@@ -35,7 +36,8 @@ def main() -> int:
 
     try:
         if args.notify_failure:
-            post("fail", {"code": "WORKER_STARTUP_FAILED", "retryable": True, "only_if_queued": not path.exists()})
+            post("fail", {"code": "FORECAST_CANCELED" if args.canceled else "WORKER_STARTUP_FAILED",
+                          "retryable": not args.canceled, "only_if_queued": not path.exists()})
             return 0
         job = post("claim", {"worker_repository": os.environ.get("GITHUB_REPOSITORY"),
                              "worker_run_id": os.environ.get("GITHUB_RUN_ID")})["data"]

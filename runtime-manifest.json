@@ -1,7 +1,7 @@
 {
-  "source_commit": "0586c32b2b1c770dde29b7cd589a85fe2856f023",
+  "source_commit": "de2ba2b68e6a7dc2342a0778143eed132be9571e",
   "files": {
-    ".github/workflows/ensemble-forecast.yml": "4271c3d39c5e33208f7e7e6367c5cb41451b199db96f4b0d222cec4f7d76a48e",
+    ".github/workflows/ensemble-forecast.yml": "0788ca30d535566ffd72d98f206cf12e00a33f812cacbe27d33190c07f6e0d4b",
     ".gitignore": "aff4e05598637bd9f2fb7b2ba445c0de59f2382db81bbc894d11c9fd57a88e00",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
     "README.md": "d67bf7730b7ce5f79c8c58fc8a51bb0e1b349f9e9b13d26139b8eb10ef36452a",
@@ -32,6 +32,6 @@
     "market_research/requirements.lock": "c31f3a67f987e1255dbf254f98fc6e686cd1d4fc30dfb7af4c8f6eb01cd8597e",
     "quantura_site/functions_explore/src/ensembleModelRegistry.json": "a90305fa71b05bedf54b669461ed875efaab3271ca6fd9c4a7ab6683d8401fc0",
     "requirements-ensemble-forecast.lock": "825f9397e09304a4b944e6f695886bebebb73370640fbe93222458c6575df3d1",
-    "scripts/ensemble_worker_bootstrap.py": "8c47f95cccfdb1bafb7b141158b8b69549bbb7a6fae5ce671b5f0d25f78c7224"
+    "scripts/ensemble_worker_bootstrap.py": "cf2683b9efcc25fc45a42ad6dde1b24ac0654639fc88646a8d86d20a8dff64d8"
   }
 }
