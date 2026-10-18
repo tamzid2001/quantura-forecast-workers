@@ -231,7 +231,6 @@ jobs:
     permissions:
       contents: write
       actions: read
-      actions: read
     steps:
       - name: Checkout authoritative code
         uses: actions/checkout@v6
