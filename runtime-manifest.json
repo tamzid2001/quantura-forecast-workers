@@ -1,8 +1,8 @@
 {
-  "source_commit": "d40db152f22d17627b0d8aa275cd611401d3440b",
+  "source_commit": "411827f110e4cc95d34f63ae305fbcebf42ac9b4",
   "files": {
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
-    ".github/workflows/hourly-game-screener.yml": "b97776a948ba8bd403872f2cc92b44ba11525ae91c1ed9a268ae7566513ae07a",
+    ".github/workflows/hourly-game-screener.yml": "f465169d750499f658d2ae06b636cbcd57491ca69d91e1ac98e92ab5de4ceb51",
     ".github/workflows/hourly-perpetual-screener.yml": "760ce7678db977660fffa291f2ddb5df46051e9a55900a639d7b3ca7d8908334",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
     ".github/workflows/stock-screener.yml": "1ed9060c9e70b198ffc9dcfe9f7967f90b44a1c54659d42e8d7649c937c45a63",
