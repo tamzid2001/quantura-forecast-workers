@@ -1,5 +1,5 @@
 {
-  "source_commit": "b247f5be6505e9e3c4d8a4d7f6ada6c8886fda3e",
+  "source_commit": "d9e4579766090dcc00ab25957f749af82d4db81d",
   "files": {
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
     ".gitignore": "aff4e05598637bd9f2fb7b2ba445c0de59f2382db81bbc894d11c9fd57a88e00",
@@ -12,7 +12,7 @@
     "ensemble_forecasting/adapters/granite.py": "22e1721313981446faef6d679d47444f26b85037618885e0b21c1753a7b5468c",
     "ensemble_forecasting/adapters/mock.py": "c0b0508dcaa22f41765bf51dd12a8a3d93a1efefa0b5aa08f29d48c4fc7a351f",
     "ensemble_forecasting/adapters/native_foundation.py": "be67e291384741f7bfb5e018f4252d318eb5f08a53ad5ab903544522e52baf1f",
-    "ensemble_forecasting/adapters/prophet.py": "0a20613027c8bbd3b9b7a96d5137352d55c6881a55edba2ccc850f448eca03a0",
+    "ensemble_forecasting/adapters/prophet.py": "6a3ae37427a3f3b2112cf00329b08b25b599cd377a8eea4d82573f30ccc43bff",
     "ensemble_forecasting/adapters/t0.py": "0e0f1f7664f081f8f6767e359c459ac18082817a3db2339ccf4f2f28a5c8f6dc",
     "ensemble_forecasting/adapters/timesfm.py": "1e6ef12db47856da6b19cacf221bc13d775fb2366cb89e1d923b200eb059a2d3",
     "ensemble_forecasting/adapters/timestral.py": "beff0e518c970d38521347820e3d2f4f284ffdfe3872189fe683749de036dca0",

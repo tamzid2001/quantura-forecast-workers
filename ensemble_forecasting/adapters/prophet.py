@@ -22,7 +22,9 @@ def seasonality_configuration(timestamps):
     A yearly series cannot identify within-year seasonality; monthly data
     cannot identify a weekly cycle. Irregular gaps use the median spacing.
     """
-    days = np.diff(timestamps.asi8) / (86400 * 1e9)
+    # DatetimeIndex storage can be seconds, microseconds, or nanoseconds.
+    # Timedelta conversion preserves the actual spacing across pandas versions.
+    days = np.asarray((timestamps[1:] - timestamps[:-1]).total_seconds()) / 86400
     step = float(np.median(days[days > 0]))
     span = (timestamps[-1] - timestamps[0]).total_seconds() / 86400
     def order(period, maximum):
