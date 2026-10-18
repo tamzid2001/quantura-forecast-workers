@@ -1,0 +1,73 @@
+name: Hourly Pregame Forecasts — Today’s Games
+on:
+  schedule:
+    - cron: '3 * * * *'
+  workflow_dispatch:
+    inputs:
+      max_contracts:
+        type: number
+        default: 500
+        description: 'Maximum outcome forecasts per provider (scheduled: 500)'
+      refresh_published:
+        type: boolean
+        default: true
+        description: 'Recompute saved forecasts from their original pregame cutoff; label them retrospective'
+      refresh_date:
+        type: string
+        default: ''
+        description: 'Optional recent date (YYYY-MM-DD) to upgrade existing saved pregame snapshots'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: hourly-game-screener
+  cancel-in-progress: false
+jobs:
+  screener:
+    if: github.event_name == 'workflow_dispatch' || vars.HOURLY_GAME_SCREENER_ENABLED == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [polymarket_us, kalshi]
+        shard: [0, 1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONUNBUFFERED: '1'
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      TIMESFM_COMMERCIAL_LICENSED: ${{ vars.TIMESFM_COMMERCIAL_LICENSED || 'false' }}
+      TIMESFM_HF_ACCESS_APPROVED: ${{ vars.TIMESFM_HF_ACCESS_APPROVED || 'false' }}
+      GITHUB_TOKEN: ${{ github.token }}
+      PROVIDER: ${{ matrix.provider }}
+      MAX_CONTRACTS: ${{ inputs.max_contracts || 500 }}
+      SHARD: ${{ matrix.shard }}
+      REFRESH_PUBLISHED: ${{ inputs.refresh_published || false }}
+      REFRESH_DATE: ${{ inputs.refresh_date || '' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Use private runner-local model and artifact directories
+        run: |
+          echo "QUANTURA_PUBLIC_DIR=$RUNNER_TEMP/public-pregame" >> "$GITHUB_ENV"
+          echo "HF_HOME=$RUNNER_TEMP/quantura-hf" >> "$GITHUB_ENV"
+          echo "QUANTURA_RESEARCH_DIR=$RUNNER_TEMP/hourly-research" >> "$GITHUB_ENV"
+      - name: Install locked ensemble environment
+        run: python -m pip install --no-cache-dir --require-hashes -r market_research/requirements.lock
+      - name: Forecast today’s games from ten days of hourly pregame data
+        run: |
+          extra=()
+          if [ "$REFRESH_PUBLISHED" = "true" ]; then extra+=(--refresh-published); fi
+          if [ -n "$REFRESH_DATE" ]; then extra+=(--refresh-date "$REFRESH_DATE"); fi
+          python -m market_research.pregame_screener --provider "$PROVIDER" --max-contracts "$MAX_CONTRACTS" --shard "$SHARD" --shards 2 "${extra[@]}"
+      - name: Publish validated public forecast catalog
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantura-public-games-${{ matrix.provider }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/public-pregame/snapshot.json.gz
+          if-no-files-found: error
+          retention-days: 3

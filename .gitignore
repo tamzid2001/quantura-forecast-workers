@@ -3,3 +3,7 @@ __pycache__/
 .env*
 .venv/
 private-forecast/
+node_modules/
+dist/
+.cache/
+screener-work/

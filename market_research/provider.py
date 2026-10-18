@@ -1,0 +1,422 @@
+"""Research consumes the same Quantura adapter used by website downloads."""
+
+import json
+import urllib.parse
+import urllib.request
+import urllib.error
+import time
+import copy
+import re
+import math
+from email.utils import parsedate_to_datetime
+
+
+def retry_after_seconds(headers):
+    value = headers.get("Retry-After", "") if headers else ""
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        try:
+            seconds = parsedate_to_datetime(value).timestamp() - time.time()
+        except (TypeError, ValueError, OverflowError):
+            return None
+    return max(0., seconds) if math.isfinite(seconds) else None
+
+
+class QuanturaProvider:
+    source = "polymarket_us"
+
+    def __init__(self, origin="https://quantura.studio"):
+        if origin != "https://quantura.studio":
+            raise ValueError("unapproved_api_origin")
+        self.origin = origin
+        self.cache = {}
+
+    def request(self, path, body=None):
+        # The only POST is Quantura's read-only dataset export. This adapter
+        # cannot address an exchange order endpoint or accept arbitrary URLs.
+        if path.split("?")[0] not in {
+            "/api/sports/prediction-markets/research-catalog",
+            "/api/sports/prediction-markets/export",
+        }:
+            raise ValueError("unapproved_read_endpoint")
+        for attempt in range(4):
+            request = urllib.request.Request(
+                self.origin + path,
+                data=json.dumps(body).encode() if body else None,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Quantura-Paper-Research/1",
+                },
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                if (
+                    error.code == 404
+                    and path == "/api/sports/prediction-markets/export"
+                ):
+                    try:
+                        payload = json.load(error)
+                    except (ValueError, OSError):
+                        payload = {}
+                    if payload.get("error") == "no_data":
+                        return {
+                            "rows": [],
+                            "metadata": {"availability": "missing_history"},
+                        }
+                if error.code in {429, 502, 503, 504} and attempt < 3:
+                    delay = max(10 * 2**attempt if error.code == 429 else 2**attempt,
+                                retry_after_seconds(error.headers) or 0.)
+                    # Longer server cooldowns fail explicitly instead of retrying
+                    # earlier than allowed or consuming the entire pregame window.
+                    if delay <= 120:
+                        time.sleep(delay)
+                        continue
+                # Retain only the adapter's bounded error code, never a URL or response body.
+                try:
+                    code = json.load(error).get("error", "")
+                except (ValueError, OSError):
+                    code = ""
+                suffix = "_" + code.upper() if isinstance(code, str) and re.fullmatch(r"[a-z_]{1,60}", code) else ""
+                raise RuntimeError(f"DATA_HTTP_{error.code}{suffix}") from None
+            except (urllib.error.URLError, TimeoutError):
+                if attempt < 3:
+                    time.sleep(2**attempt)
+                    continue
+                raise RuntimeError("DATA_UNAVAILABLE") from None
+
+    def discover(self, mode, max_pages=20, start_cursor="0"):
+        contracts = {}
+        cursor = str(start_cursor)
+        if not cursor.isdigit() or not 0 <= int(cursor) <= 100000:
+            raise ValueError("INVALID_DISCOVERY_CURSOR")
+        seen = set()
+        events = 0
+        for _ in range(max_pages):
+            if cursor in seen:
+                raise RuntimeError("REPEATED_CURSOR")
+            seen.add(cursor)
+            result = self.request(
+                "/api/sports/prediction-markets/research-catalog?"
+                + urllib.parse.urlencode({"mode": mode, "cursor": cursor})
+            )
+            events += result["events_scanned"]
+            for c in result["items"]:
+                contracts[c["contractId"]] = c
+            cursor = result.get("next_cursor")
+            if cursor is None:
+                break
+            time.sleep(0.1)
+        return list(contracts.values()), {
+            "start_cursor": str(start_cursor),
+            "events_scanned": events,
+            "contracts_discovered": len(contracts),
+            "discovery_truncated": cursor is not None,
+            "next_cursor": cursor,
+        }
+
+    def _schedule_request(self, url):
+        """Only fixed first-party public schedule endpoints; no order API."""
+        request = urllib.request.Request(url, headers={"User-Agent": "Quantura/1.0", "Accept": "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                return json.load(response)
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            raise RuntimeError("SCHEDULE_UNAVAILABLE") from None
+
+    def verify_schedule(self, contract):
+        from .engine import stamp, iso
+        symbol, event_id = contract["providerSymbol"], contract["eventId"]
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,220}", symbol):
+            raise ValueError("INVALID_SCHEDULE_IDENTIFIER")
+        updated = {**contract}
+        if self.source == "kalshi":
+            if not re.fullmatch(r"[A-Z0-9_-]{1,220}", event_id):
+                raise ValueError("INVALID_SCHEDULE_IDENTIFIER")
+            root = "https://api.elections.kalshi.com/trade-api/v2/"
+            payload = self._schedule_request(root + "events/" + event_id + "?with_nested_markets=true")
+            if payload.get("event", {}).get("event_ticker") != event_id:
+                raise ValueError("SCHEDULE_IDENTITY_MISMATCH")
+            markets = payload.get("markets") or payload.get("event", {}).get("markets", [])
+            market = next((m for m in markets if m.get("ticker") == symbol), None)
+            if not market:
+                raise ValueError("SCHEDULE_IDENTITY_MISMATCH")
+            milestones = self._schedule_request(root + "milestones?" + urllib.parse.urlencode({"related_event_ticker": event_id, "limit": 500}))
+            if milestones.get("cursor"):
+                raise ValueError("SCHEDULE_DISCOVERY_INCOMPLETE")
+            starts = {stamp(m["start_date"]) for m in milestones.get("milestones", [])
+                      if event_id in [*m.get("primary_event_tickers", []), *m.get("related_event_tickers", [])] and m.get("start_date")}
+            if len(starts) != 1:
+                raise ValueError("SCHEDULE_MISSING_OR_CONFLICTING")
+            start = starts.pop()
+            updated.update(marketId=symbol, status="closed" if market.get("status") in {"closed", "finalized", "settled", "determined"} else "open")
+            source = "Kalshi linked sports milestone"
+        else:
+            root = "https://gateway.polymarket.us/v1/"
+            market = self._schedule_request(root + "market/slug/" + symbol).get("market", {})
+            side = next((s for s in market.get("marketSides", []) if str(s.get("id")) == str(contract["contractId"])), None)
+            if market.get("slug") != symbol or not side:
+                raise ValueError("SCHEDULE_IDENTITY_MISMATCH")
+            kickoff = market.get("gameStartTime")
+            source = "Polymarket US market gameStartTime"
+            if not kickoff and contract.get("eventSlug"):
+                slug = contract["eventSlug"]
+                if not re.fullmatch(r"[A-Za-z0-9_-]{1,220}", slug):
+                    raise ValueError("INVALID_SCHEDULE_IDENTIFIER")
+                event = self._schedule_request(root + "events/slug/" + slug).get("event", {})
+                if str(event.get("id")) != str(event_id) or event.get("slug") != slug:
+                    raise ValueError("SCHEDULE_IDENTITY_MISMATCH")
+                kickoff, source = event.get("startTime"), "Polymarket US event startTime"
+            if not kickoff:
+                raise ValueError("SCHEDULE_MISSING")
+            start = stamp(kickoff)
+            if not market.get("id"):
+                raise ValueError("SCHEDULE_IDENTITY_MISSING")
+            updated.update(marketId=str(market["id"]), side="long" if side.get("long") is not False else "short",
+                           status="closed" if market.get("closed") or market.get("status") == "MARKET_STATUS_RESOLVED" else "open")
+        updated.update(eventStart=iso(start), scheduleSource=source, scheduleVerifiedAt=iso(int(time.time())), live=time.time() >= start)
+        return updated
+
+    def history(self, contract, start, end, history_phase="both", history_lookback_minutes=0):
+        from .engine import iso
+        if history_phase not in {"both", "pregame", "in_game"} or type(history_lookback_minutes) is not int or not 0 <= history_lookback_minutes <= 129600:
+            raise ValueError("INVALID_HISTORY_SELECTION")
+        key = (contract["providerSymbol"], start, end, history_phase, history_lookback_minutes)
+        cached = self.cache.get(key)
+        if cached and time.monotonic() - cached[0] < 30:
+            rows = copy.deepcopy(cached[1])
+            for row in rows:
+                row.setdefault("raw", {})["selected_position"] = contract["side"]
+                row["selected_position"] = contract["side"]
+            return rows
+        result = self.request(
+            "/api/sports/prediction-markets/export",
+            {
+                "source": self.source,
+                "contracts": [contract],
+                "start": iso(start),
+                "end": iso(end),
+                "frequency": "1m" if self.source == "kalshi" else "raw",
+                "mode": "raw",
+                "target": "price",
+                "missing": "leave",
+                "history_phase": history_phase,
+                "history_lookback_minutes": history_lookback_minutes,
+                "pregameOnly": history_phase == "pregame",
+                "format": "json",
+            },
+        )
+        self.cache = {
+            k: v for k, v in self.cache.items() if time.monotonic() - v[0] < 30
+        }
+        self.cache[key] = (time.monotonic(), result["rows"])
+        rows = copy.deepcopy(result["rows"])
+        for row in rows:
+            row["selected_position"] = contract["side"]
+        return rows
+
+    def hourly_history(self, contract, start, end):
+        """Completed, genuine hourly observations; no forward filling."""
+        from .engine import iso, stamp, Quote
+        result = self.request("/api/sports/prediction-markets/export", {
+            "source": self.source, "contracts": [contract], "start": iso(start),
+            "end": iso(end), "frequency": "1h", "mode": "normalized",
+            "target": "price", "missing": "leave", "history_phase": "pregame",
+            "pregameOnly": True, "format": "json",
+        })
+        quotes = {}
+        for row in result.get("rows", []):
+            if row.get("is_forward_filled") or row.get("observed") is False:
+                continue
+            # Kalshi candles are end-stamped; Polymarket buckets are start-stamped.
+            close = stamp(row["timestamp"]) + (3600 if self.source == "polymarket_us" else 0)
+            price = row.get("ask") if self.source == "kalshi" else row.get("price")
+            if start < close <= end and type(price) in (int, float) and 0 <= price <= 1:
+                quotes[close] = Quote(close, price, price)
+        return sorted(quotes.values(), key=lambda q: q.timestamp)
+
+    def resolution(self, contract):
+        """Read-only official outcome evidence, never inferred from a last quote."""
+        slug=contract["providerSymbol"]
+        if self.source!="polymarket_us" or not re.fullmatch(r"[A-Za-z0-9_-]{1,220}",slug):
+            raise ValueError("UNSUPPORTED_RESOLUTION_IDENTIFIER")
+        root="https://gateway.polymarket.us/v1/"
+        def get(path):
+            with urllib.request.urlopen(root+path,timeout=20) as response:
+                return json.load(response)
+        market=get("market/slug/"+slug).get("market",{})
+        status=market.get("status")
+        evidence={"provider":"polymarket_us","symbol":slug,"contract_id":contract["contractId"],
+            "side":contract["side"],"outcome_label":contract.get("outcome"),"market_status":status,
+            "checked_at":int(time.time()),"source_url":root+"markets/"+slug+"/settlement",
+            "selected_side_won":None}
+        if status!="MARKET_STATUS_RESOLVED":return {**evidence,"resolution_status":"pending"}
+        raw=get("markets/"+slug+"/settlement")
+        value=raw.get("settlement")
+        if raw.get("slug")!=slug or type(value) not in (int,float) or value not in (0,1):
+            return {**evidence,"resolution_status":"partial_void_or_unverified","raw_settlement":value}
+        selected=next((s for s in market.get("marketSides",[]) if str(s.get("id"))==str(contract["contractId"])),None)
+        if not selected or selected.get("long")!=(contract["side"]=="long"):
+            return {**evidence,"resolution_status":"side_identity_unverified"}
+        payout=value if contract["side"]=="long" else 1-value
+        if str(selected.get("price")) not in (str(payout),str(float(payout))):
+            return {**evidence,"resolution_status":"conflicting_evidence"}
+        return {**evidence,"resolution_status":"resolved","long_settlement":value,
+            "selected_side_won":bool(payout),"selected_side_payout":payout}
+
+
+class KalshiProvider(QuanturaProvider):
+    """Same website download service; cursor addresses one Sports game at a time."""
+
+    source = "kalshi"
+
+    def __init__(self, series_ticker=""):
+        super().__init__()
+        self.series_ticker = series_ticker
+        self.series = None
+
+    def resolution(self, contract):
+        """Verify a binary payout against official live/historical market data."""
+        from decimal import Decimal, InvalidOperation
+        from .kalshi_btc import API, KalshiBTCProvider
+        from .engine import stamp
+
+        ticker, side = contract.get('providerSymbol', ''), contract.get('side')
+        if (not re.fullmatch(r'KX[A-Z0-9]+-[A-Z0-9-]{1,180}', ticker) or
+                side not in {'yes', 'no'} or contract.get('marketId') != ticker or
+                contract.get('contractId') != f'{ticker}:{side}'):
+            raise ValueError('KALSHI_RESOLUTION_IDENTITY_MISMATCH')
+        reader = KalshiBTCProvider()
+        reader.series_ticker = ticker.split('-', 1)[0]
+        path = ('/historical' if contract.get('sourceTier') == 'historical' else '') + '/markets/' + ticker
+        try:
+            market = reader.get(path)['market']
+        except RuntimeError as error:
+            if str(error) != 'KALSHI_HTTP_404':
+                raise
+            path = ('/markets/' if path.startswith('/historical/') else '/historical/markets/') + ticker
+            market = reader.get(path)['market']
+        if (market.get('ticker') != ticker or market.get('event_ticker') != contract.get('eventId') or
+                market.get('market_type') != 'binary'):
+            raise ValueError('KALSHI_RESOLUTION_IDENTITY_MISMATCH')
+        evidence = dict(provider='kalshi', contract_id=contract['contractId'], side=side,
+                        checked_at=int(time.time()), source_url=API + path, result=market.get('result'),
+                        resolution_status='pending_or_unverified', selected_side_won=None)
+        if (market.get('status') not in {'finalized', 'settled'} or
+                market.get('result') not in {'yes', 'no'} or market.get('is_provisional') is True):
+            return evidence
+        expected = int(market['result'] == 'yes')
+        if market.get('settlement_value_dollars') is not None:
+            try:
+                if Decimal(str(market['settlement_value_dollars'])) != expected:
+                    return {**evidence, 'resolution_status': 'conflicting_or_partial_settlement'}
+            except InvalidOperation:
+                return {**evidence, 'resolution_status': 'conflicting_or_partial_settlement'}
+        try:
+            settled_at = stamp(market.get('settlement_ts') or '')
+        except (KeyError, TypeError, ValueError):
+            return {**evidence, 'resolution_status': 'settlement_time_unverified'}
+        payout = expected if side == 'yes' else 1 - expected
+        return {**evidence, 'resolution_status': 'resolved', 'settled_at': settled_at,
+                'selected_side_won': bool(payout), 'selected_side_payout': payout}
+
+    def discover(self, mode, max_pages=1, start_cursor="0"):
+        if mode in {"live", "premarket"}:
+            contracts, cursor, coverage = {}, start_cursor, {}
+            for _ in range(max_pages):
+                items, coverage = self._page(mode, cursor)
+                for item in items:
+                    contracts[item["contractId"]] = {**item, "live": mode == "live",
+                        "live_classification": "known_future_game_start" if mode == "premarket" else "started_open_market_not_live_score_confirmation"}
+                cursor = coverage["next_cursor"]
+                if cursor is None:
+                    break
+            return list(contracts.values()), {**coverage, "contracts_discovered": len(contracts), "next_cursor": cursor}
+        if mode != "historical" or max_pages != 1:
+            raise ValueError("KALSHI_ARCHIVE_REQUIRES_SINGLE_EVENT_PAGES")
+        return self._page(mode, start_cursor)
+
+    def _page(self, mode, start_cursor):
+        root = "/api/sports/prediction-markets/research-catalog?"
+        if self.series is None:
+            inventory = self.request(root + "source=kalshi")["series"]
+            self.series_total = len(inventory)
+            self.series = sorted(
+                [
+                    s["ticker"]
+                    for s in inventory
+                    if (
+                        s["ticker"] == self.series_ticker
+                        if self.series_ticker
+                        else s["game_candidate"]
+                    )
+                ]
+            )
+            if not self.series:
+                raise ValueError("NO_ELIGIBLE_SPORTS_SERIES")
+        state = {} if str(start_cursor) in {"", "0"} else json.loads(start_cursor)
+        if not isinstance(state, dict) or set(state) - {"series", "cursor"}:
+            raise ValueError("INVALID_DISCOVERY_CURSOR")
+        selected = state.get("series", self.series[0])
+        if selected not in self.series or not isinstance(state.get("cursor", ""), str):
+            raise ValueError("INVALID_DISCOVERY_CURSOR")
+        result = self.request(
+            root
+            + urllib.parse.urlencode(
+                {
+                    "source": "kalshi",
+                    "mode": mode,
+                    "series_ticker": selected,
+                    "cursor": state.get("cursor", ""),
+                }
+            )
+        )
+        if result.get("next_cursor"):
+            next_state = {"series": selected, "cursor": result["next_cursor"]}
+        else:
+            index = self.series.index(selected) + 1
+            next_state = (
+                {"series": self.series[index], "cursor": ""}
+                if index < len(self.series)
+                else None
+            )
+        cursor = json.dumps(next_state, separators=(",", ":")) if next_state else None
+        return result["items"], {
+            "source": self.source,
+            "series": selected,
+            "series_discovered": self.series_total,
+            "eligible_game_series": len(self.series),
+            "events_scanned": result["events_scanned"],
+            "contracts_discovered": len(result["items"]),
+            "next_cursor": cursor,
+            "discovery_truncated": cursor is not None,
+            "classification": "game_match_moneyline_series_suffix_excluding_periods_props",
+        }
+
+
+def historical_range(contract, now):
+    """Pregame plus game replay, bounded to 48h and never beyond collection time."""
+    from .engine import stamp
+
+    if contract.get("source") == "kalshi" and not contract.get("eventStart"):
+        # Missing sports milestones do not erase raw data. Use the market's
+        # genuine open/close metadata, without calling open time a game start.
+        start = stamp(contract["availableFrom"])
+        end = min(now, stamp(contract.get("resolutionTime") or contract["availableTo"]))
+        # The shared web download service is bounded to 90 days.
+        if end <= start or end - start > 90 * 86400:
+            raise ValueError("KALSHI_HISTORY_RANGE_REQUIRES_PARTITIONING")
+        return start, end
+    event_start = stamp(contract["eventStart"])
+    start = event_start - 501 * 60
+    resolution = contract.get("resolutionTime")
+    end = min(
+        now,
+        stamp(resolution) + 60 if resolution else event_start + 36 * 3600,
+        start + 48 * 3600,
+    )
+    if end <= start:
+        raise ValueError("INVALID_HISTORY_WINDOW")
+    return start, end

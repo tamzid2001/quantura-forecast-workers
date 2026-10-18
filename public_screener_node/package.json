@@ -1,0 +1,16 @@
+{
+  "name": "quantura-public-screener-publication",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc --target ES2022 --module commonjs --esModuleInterop --skipLibCheck --outDir dist src/screenerArtifacts.ts src/screenerSignals.ts src/screenerHistory.ts"
+  },
+  "dependencies": {
+    "adm-zip": "0.6.1",
+    "@vercel/functions": "3.9.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "5.8.3"
+  }
+}

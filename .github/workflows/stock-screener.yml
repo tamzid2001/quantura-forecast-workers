@@ -1,0 +1,366 @@
+name: Quantura Full-Universe Screener
+
+run-name: Quantura screener · ${{ github.event.inputs.run_key || github.event_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_key:
+        description: "Optional Quantura request key"
+        required: false
+        default: ""
+      max_tickers:
+        description: "Development-only deterministic symbol cap; blank scans the full universe"
+        required: false
+        default: ""
+      chunk_count:
+        description: "Parallel deterministic chunks"
+        required: false
+        default: "32"
+      coverage_threshold:
+        description: "Minimum successful evaluation coverage (0-1)"
+        required: false
+        default: "0.90"
+      publish_results:
+        description: "Replace the rolling website dataset after coverage passes"
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    - cron: "17 * * * *" # Catch up the latest unpublished NYSE close, even after Actions delays.
+
+permissions: {}
+
+concurrency:
+  group: quantura-full-universe-screener
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  CHUNK_COUNT: ${{ github.event.inputs.chunk_count || '32' }}
+  COVERAGE_THRESHOLD: ${{ github.event.inputs.coverage_threshold || '0.90' }}
+  MAX_TICKERS: ${{ github.event.inputs.max_tickers || '' }}
+  PUBLISH_RESULTS: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.publish_results || 'false' }}
+
+jobs:
+  prepare:
+    name: Prepare current market universe
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      should_run: ${{ steps.session.outputs.should_run }}
+      matrix: ${{ steps.matrix.outputs.value }}
+      universe_hash: ${{ steps.metadata.outputs.universe_hash }}
+      scan_date: ${{ steps.metadata.outputs.scan_date }}
+      selected_count: ${{ steps.metadata.outputs.selected_count }}
+    steps:
+      - name: Checkout authoritative code
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install universe dependencies
+        run: python -m pip install --disable-pip-version-check pandas requests lxml pandas-market-calendars==5.4.0
+      - name: Read last validated publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p screener-work/published
+          if gh release view screener-latest --json assets > screener-work/published/release.json 2> screener-work/published/release-error.txt; then
+            if jq -e '.assets | any(.name == "run-manifest.json")' screener-work/published/release.json > /dev/null; then
+              gh release download screener-latest --pattern run-manifest.json --dir screener-work/published --clobber
+            fi
+          elif ! grep -q '^release not found$' screener-work/published/release-error.txt; then
+            cat screener-work/published/release-error.txt >&2
+            exit 1
+          fi
+      - name: Select latest unpublished exchange session
+        id: session
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          args=()
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then args+=(--manual); fi
+          python scripts/screener_schedule.py "${args[@]}" --publication-manifest screener-work/published/run-manifest.json >> "$GITHUB_OUTPUT"
+      - name: Generate S&P 500, Nasdaq, SPY, and earnings universe
+        if: steps.session.outputs.should_run == 'true'
+        env:
+          SCAN_DATE: ${{ steps.session.outputs.scan_date }}
+          SESSION_CLOSE: ${{ steps.session.outputs.session_close }}
+        shell: bash
+        run: |
+          if [[ -n "$MAX_TICKERS" && "$PUBLISH_RESULTS" == true ]]; then
+            echo 'A capped smoke scan cannot replace the full production universe.' >&2
+            exit 1
+          fi
+          mkdir -p screener-work/universe
+          command=(
+            python scripts/quant_screener_pipeline.py universe
+            --output screener-work/universe/universe.json
+            --matrix-output screener-work/universe/matrix.json
+            --chunk-count "${CHUNK_COUNT}"
+            --scan-date "$SCAN_DATE"
+            --session-close "$SESSION_CLOSE"
+          )
+          if [[ -n "${MAX_TICKERS}" ]]; then
+            command+=(--max-tickers "${MAX_TICKERS}")
+          fi
+          "${command[@]}"
+      - name: Export matrix
+        if: steps.session.outputs.should_run == 'true'
+        id: matrix
+        run: echo "value=$(jq -c . screener-work/universe/matrix.json)" >> "$GITHUB_OUTPUT"
+      - name: Export universe metadata
+        if: steps.session.outputs.should_run == 'true'
+        id: metadata
+        shell: bash
+        run: |
+          echo "universe_hash=$(jq -r .universe_hash screener-work/universe/universe.json)" >> "$GITHUB_OUTPUT"
+          echo "scan_date=$(jq -r .scan_date screener-work/universe/universe.json)" >> "$GITHUB_OUTPUT"
+          echo "selected_count=$(jq -r .counts.selected screener-work/universe/universe.json)" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable universe input
+        if: steps.session.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantura-screener-universe-${{ github.run_id }}
+          path: screener-work/universe
+          if-no-files-found: error
+          retention-days: 2
+      - name: Summarize universe
+        if: steps.session.outputs.should_run == 'true'
+        run: |
+          {
+            echo "## Current screener universe"
+            echo
+            echo "- S&P 500 rows: $(jq -r .counts.sp500 screener-work/universe/universe.json)"
+            echo "- Eligible Nasdaq common stocks: $(jq -r .counts.nasdaq screener-work/universe/universe.json)"
+            echo "- Duplicates removed: $(jq -r .counts.duplicates_removed screener-work/universe/universe.json)"
+            echo "- Combined selected symbols: $(jq -r .counts.selected screener-work/universe/universe.json)"
+            echo "- SPY included: $(jq -r .counts.spy_included screener-work/universe/universe.json)"
+            echo "- Universe hash: ${{ steps.metadata.outputs.universe_hash }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  scan:
+    name: Scan chunk ${{ matrix.chunk }} of ${{ matrix.chunk_count }}
+    needs: prepare
+    if: needs.prepare.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      ALPACA_DATA_URL: ${{ vars.ALPACA_DATA_URL || 'https://data.alpaca.markets' }}
+      ALPACA_DATA_FEED: ${{ vars.SCREENER_ALPACA_DATA_FEED || 'sip' }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      TIMESFM_HF_ACCESS_APPROVED: ${{ vars.TIMESFM_HF_ACCESS_APPROVED || 'false' }}
+      TIMESFM_COMMERCIAL_LICENSED: ${{ vars.TIMESFM_COMMERCIAL_LICENSED || 'false' }}
+      GRANITE_DEVICE: cpu
+      CUDA_VISIBLE_DEVICES: ''
+    steps:
+      - name: Checkout authoritative code
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install locked five-model inference environment
+        run: |
+          python -m pip install --no-cache-dir --disable-pip-version-check --requirement requirements-ensemble-forecast.lock --requirement requirements-screener-marketdata.lock
+          python -c 'import requests; from scripts.weekly_screener import weekly_configuration; assert len(weekly_configuration()["models"]) == 5'
+      - name: Check production TimesFM license and access flags
+        run: |
+          test "$TIMESFM_HF_ACCESS_APPROVED" = true
+          test "$TIMESFM_COMMERCIAL_LICENSED" = true
+      - name: Download immutable universe input
+        uses: actions/download-artifact@v8
+        with:
+          name: quantura-screener-universe-${{ github.run_id }}
+          path: screener-work/universe
+      - name: Restore valid same-day chunk checkpoint
+        id: checkpoint
+        uses: actions/cache/restore@v6
+        with:
+          path: screener-work/chunks/chunk-${{ matrix.chunk }}.json
+          key: quantura-screener-v3-${{ github.sha }}-${{ needs.prepare.outputs.scan_date }}-${{ needs.prepare.outputs.universe_hash }}-${{ matrix.chunk_count }}-${{ matrix.chunk }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: quantura-screener-v3-${{ github.sha }}-${{ needs.prepare.outputs.scan_date }}-${{ needs.prepare.outputs.universe_hash }}-${{ matrix.chunk_count }}-${{ matrix.chunk }}-
+      - name: Evaluate chunk with batched market data and isolated failures
+        run: |
+          mkdir -p screener-work/chunks
+          python scripts/quant_screener_pipeline.py chunk \
+            --universe screener-work/universe/universe.json \
+            --chunk "${{ matrix.chunk }}" \
+            --chunk-count "${{ matrix.chunk_count }}" \
+            --output "screener-work/chunks/chunk-${{ matrix.chunk }}.json" \
+            --resume
+      - name: Save small progress checkpoint even after inference failure
+        if: always() && hashFiles(format('screener-work/chunks/chunk-{0}.json', matrix.chunk)) != ''
+        uses: actions/cache/save@v6
+        with:
+          path: screener-work/chunks/chunk-${{ matrix.chunk }}.json
+          key: ${{ steps.checkpoint.outputs.cache-primary-key }}
+      - name: Upload chunk checkpoint
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantura-screener-chunk-${{ matrix.chunk }}
+          path: screener-work/chunks/chunk-${{ matrix.chunk }}.json
+          if-no-files-found: error
+          retention-days: 2
+
+  aggregate:
+    name: Validate coverage and publish dataset
+    needs: [prepare, scan]
+    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+      actions: read
+    steps:
+      - name: Checkout authoritative code
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install aggregate dependencies
+        run: |
+          python -m pip install --disable-pip-version-check requests
+          python -S -c 'from scripts.weekly_screener import configuration_hash; assert len(configuration_hash()) == 64'
+      - name: Download universe
+        uses: actions/download-artifact@v8
+        with:
+          name: quantura-screener-universe-${{ github.run_id }}
+          path: screener-work/universe
+      - name: Download all available chunk checkpoints
+        uses: actions/download-artifact@v8
+        with:
+          pattern: quantura-screener-chunk-*
+          path: screener-work/downloaded-chunks
+          merge-multiple: false
+      - name: Aggregate and calculate real coverage
+        id: aggregate
+        shell: bash
+        run: |
+          python scripts/quant_screener_pipeline.py aggregate \
+            --universe screener-work/universe/universe.json \
+            --chunks-dir screener-work/downloaded-chunks \
+            --chunk-count "${CHUNK_COUNT}" \
+            --coverage-threshold "${COVERAGE_THRESHOLD}" \
+            --output-dir screener-work/final
+          echo "coverage_ok=$(jq -r .coverage_ok screener-work/final/run-manifest.json)" >> "$GITHUB_OUTPUT"
+          echo "coverage=$(jq -r .coverage_percentage screener-work/final/run-manifest.json)" >> "$GITHUB_OUTPUT"
+          echo "scan_date=$(jq -r .scan_date screener-work/final/run-manifest.json)" >> "$GITHUB_OUTPUT"
+      - name: Upload aggregate and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantura-screener-v3
+          path: screener-work/final
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/setup-node@v6
+        if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
+        with:
+          node-version: '24'
+      - name: Build shared stock publication validation
+        if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
+        working-directory: public_screener_node
+        run: npm ci --no-audit --no-fund && npm run build
+      - name: Package stock prices, quantiles and comparison history
+        if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node public_screener_node/scripts/publish-stock-artifact.cjs screener-work/final/quantura-screener-latest.json screener-work/public
+      - name: Publish validated stock snapshot
+        if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantura-public-stocks
+          path: screener-work/public/snapshot.json.gz
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain immutable dated stock scan
+        if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: quantura-public-stocks-${{ steps.aggregate.outputs.scan_date }}
+          path: screener-work/public/snapshot.json.gz
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish rolling website dataset
+        if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          SCAN_DATE="$(jq -r .scan_date screener-work/final/quantura-screener-latest.json)"
+          if [[ ! "$SCAN_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "Invalid screener scan date" >&2
+            exit 1
+          fi
+          if ! gh release view screener-latest >/dev/null 2>&1; then
+            gh release create screener-latest \
+              --title "Quantura Screener — Latest Complete Scan" \
+              --notes "Rolling validated dataset consumed by quantura.studio/screener." \
+              --latest=false
+          fi
+          gzip -n -9 -c screener-work/final/quantura-screener-latest.json > "screener-work/final/quantura-screener-${SCAN_DATE}.json.gz"
+          gh release upload screener-latest \
+            "screener-work/final/quantura-screener-${SCAN_DATE}.json.gz" \
+            screener-work/final/quantura-screener-latest.json \
+            screener-work/final/quantura-screener-latest.csv \
+            --clobber
+          # Publish this completion marker only after all website assets succeed.
+          gh release upload screener-latest \
+            screener-work/final/run-manifest.json \
+            --clobber
+          CUTOFF_DATE="$(date -u -d "${SCAN_DATE} -13 days" +%F)"
+          while IFS= read -r asset; do
+            if [[ "$asset" =~ ^quantura-screener-([0-9]{4}-[0-9]{2}-[0-9]{2})\.json\.gz$ ]] && [[ "${BASH_REMATCH[1]}" < "$CUTOFF_DATE" ]]; then
+              gh release delete-asset screener-latest "$asset" --yes
+            fi
+          done < <(gh release view screener-latest --json assets --jq '.assets[].name')
+      - name: Write scan summary
+        if: always()
+        run: |
+          if [[ ! -f screener-work/final/run-manifest.json ]]; then
+            echo "## Screener aggregate unavailable" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "## Quantura full-universe scan"
+            echo
+            echo "- Expected: $(jq -r .expected screener-work/final/run-manifest.json)"
+            echo "- Eligible: $(jq -r .eligible screener-work/final/run-manifest.json)"
+            echo "- Successfully evaluated: $(jq -r .successfully_processed screener-work/final/run-manifest.json)"
+            echo "- Missing predictions: $(jq -r .missing_predictions screener-work/final/run-manifest.json)"
+            echo "- Missing market data: $(jq -r .missing_market_data screener-work/final/run-manifest.json)"
+            echo "- Unsupported: $(jq -r .unsupported screener-work/final/run-manifest.json)"
+            echo "- Failed: $(jq -r .failed screener-work/final/run-manifest.json)"
+            echo "- Coverage: $(jq -r .coverage_percentage screener-work/final/run-manifest.json)%"
+            echo "- Required coverage: $(jq -r '.coverage_threshold * 100' screener-work/final/run-manifest.json)%"
+            echo "- Status: $(jq -r .status screener-work/final/run-manifest.json)"
+            echo "- Published to website: ${PUBLISH_RESULTS}"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Enforce minimum coverage
+        if: steps.aggregate.outputs.coverage_ok != 'true'
+        run: |
+          echo "Coverage ${{ steps.aggregate.outputs.coverage }}% is below the required threshold; the prior validated website dataset was preserved."
+          exit 1
