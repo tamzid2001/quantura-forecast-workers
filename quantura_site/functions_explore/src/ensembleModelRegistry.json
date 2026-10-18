@@ -1,0 +1,234 @@
+{
+  "schemaVersion": "2026-10-18-seven-model-refinement",
+  "defaultQuantiles": [
+    0.01,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.99
+  ],
+  "maxRequestedQuantiles": 21,
+  "models": {
+    "prophet": {
+      "name": "Meta Prophet",
+      "checkpoint": null,
+      "defaultWeight": 0.2,
+      "quantileSupport": {
+        "type": "requested"
+      },
+      "maxPredictionLength": 365,
+      "maxContextLength": 10000,
+      "defaultDevice": "cpu",
+      "featureEntitlement": "meta_prophet"
+    },
+    "toto": {
+      "name": "Toto 2.0 4M",
+      "checkpoint": "Datadog/Toto-2.0-4m",
+      "checkpointRevision": "8306a9801cf98c0f5ffe4b2dcc8f496e616d84d9",
+      "defaultVariant": "4m",
+      "variants": [
+        {
+          "id": "4m",
+          "name": "4M \u00b7 smallest",
+          "checkpoint": "Datadog/Toto-2.0-4m",
+          "checkpointRevision": "8306a9801cf98c0f5ffe4b2dcc8f496e616d84d9"
+        },
+        {
+          "id": "22m",
+          "name": "22M",
+          "checkpoint": "Datadog/Toto-2.0-22m",
+          "checkpointRevision": "685e4ae3e2be8d8998025e53dd98e7fdcb296a89"
+        },
+        {
+          "id": "313m",
+          "name": "313M",
+          "checkpoint": "Datadog/Toto-2.0-313m",
+          "checkpointRevision": "a7bab288f5e95f8606f8306f86659357e1c001ef"
+        },
+        {
+          "id": "1b",
+          "name": "1B",
+          "checkpoint": "Datadog/Toto-2.0-1B",
+          "checkpointRevision": "1604e1a5242884fb9848f88c4ced14f4dc62d9d3"
+        },
+        {
+          "id": "2.5b",
+          "name": "2.5B \u00b7 largest",
+          "checkpoint": "Datadog/Toto-2.0-2.5B",
+          "checkpointRevision": "51a2812bbe449437c01b79c0e425ed578f335f5b"
+        }
+      ],
+      "minimumObservedContext": 32,
+      "defaultWeight": 0.2,
+      "quantileSupport": {
+        "type": "bounded_native",
+        "native": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9
+        ],
+        "minimum": 0.1,
+        "maximum": 0.9,
+        "interpolateWithinRange": true,
+        "extrapolate": false
+      },
+      "maxPredictionLength": 1024,
+      "maxContextLength": 4096,
+      "defaultDevice": "auto",
+      "featureEntitlement": "forecast_ensemble"
+    },
+    "granite": {
+      "name": "IBM Granite PatchTST-FM-r2",
+      "checkpoint": "ibm-granite/granite-timeseries-patchtst-fm-r2",
+      "defaultWeight": 0.2,
+      "quantileSupport": {
+        "type": "requested"
+      },
+      "maxPredictionLength": 720,
+      "maxContextLength": 4096,
+      "defaultDevice": "cpu",
+      "featureEntitlement": "forecast_ensemble",
+      "checkpointRevision": "b125275f9204d37cbb81fe47b9cf5e08a521e829"
+    },
+    "chronos": {
+      "name": "Amazon Chronos-2",
+      "checkpoint": "amazon/chronos-2",
+      "defaultWeight": 0.2,
+      "quantileSupport": {
+        "type": "requested_verified_native_range"
+      },
+      "maxPredictionLength": 512,
+      "maxContextLength": 2048,
+      "defaultDevice": "auto",
+      "featureEntitlement": "chronos_2",
+      "checkpointRevision": "29ec3766d36d6f73f0696f85560a422f50e8498c"
+    },
+    "timesfm": {
+      "name": "Google TimesFM 3.0",
+      "checkpoint": "google/timesfm-3.0-pytorch",
+      "defaultWeight": 0.2,
+      "quantileSupport": {
+        "type": "bounded_native",
+        "native": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5,
+          0.6,
+          0.7,
+          0.8,
+          0.9
+        ],
+        "minimum": 0.1,
+        "maximum": 0.9,
+        "interpolateWithinRange": true,
+        "extrapolate": false
+      },
+      "maxPredictionLength": 1024,
+      "maxContextLength": 16384,
+      "defaultDevice": "auto",
+      "featureEntitlement": "forecast_ensemble",
+      "requiresHfAccess": true,
+      "requiresCommercialLicenseForProduction": true,
+      "license": "timesfm-non-commercial-license-v1.0",
+      "checkpointRevision": "43046b85ec22d584a13f8098c2ed39c889e129c2"
+    },
+    "timestral": {
+      "name": "Mistral Timestral 209M",
+      "checkpoint": "mistralai/Timestral-209M",
+      "checkpointRevision": "9874d252ab0aae16f7f7c999f98f98d6ad7d8365",
+      "defaultWeight": 0.2,
+      "minimumObservedContext": 2,
+      "quantileSupport": {
+        "type": "bounded_native",
+        "native": [
+          0.01,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          0.99
+        ],
+        "minimum": 0.01,
+        "maximum": 0.99,
+        "interpolateWithinRange": true,
+        "extrapolate": false
+      },
+      "maxPredictionLength": 1024,
+      "maxContextLength": 16384,
+      "defaultDevice": "auto",
+      "featureEntitlement": "forecast_ensemble",
+      "license": "modified-mit-revenue-limit",
+      "licenseUrl": "https://huggingface.co/mistralai/Timestral-209M/blob/9874d252ab0aae16f7f7c999f98f98d6ad7d8365/LICENSE",
+      "licenseNotice": "Weights: modified MIT; companies above $20M consolidated monthly revenue require a separate Mistral license."
+    },
+    "t0": {
+      "name": "T0-gamma",
+      "checkpoint": "theforecastingcompany/t0-gamma",
+      "checkpointRevision": "e08aee083778f1f32da4974c0a34276776a35c52",
+      "defaultWeight": 0.2,
+      "minimumObservedContext": 2,
+      "quantileSupport": {
+        "type": "bounded_native",
+        "native": [
+          0.01,
+          0.05,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          0.99
+        ],
+        "minimum": 0.01,
+        "maximum": 0.99,
+        "interpolateWithinRange": true,
+        "extrapolate": false
+      },
+      "maxPredictionLength": 1024,
+      "maxContextLength": 4096,
+      "defaultDevice": "auto",
+      "featureEntitlement": "forecast_ensemble",
+      "license": "apache-2.0",
+      "licenseUrl": "https://huggingface.co/theforecastingcompany/t0-gamma/blob/e08aee083778f1f32da4974c0a34276776a35c52/LICENSE"
+    }
+  },
+  "autoWeightPolicy": "rolling_loss_selection_v2"
+}

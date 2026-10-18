@@ -1,0 +1,62 @@
+name: Quantura Public Forecast Worker
+run-name: Forecast ${{ inputs.forecast_job_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      forecast_job_id:
+        required: true
+        type: string
+      environment:
+        default: production
+        type: choice
+        options: [production, test, dev]
+      smoke_mode:
+        default: real
+        type: choice
+        options: [real]
+permissions:
+  contents: read
+concurrency:
+  group: forecast-${{ inputs.forecast_job_id }}
+  cancel-in-progress: false
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      FORECAST_JOB_ID: ${{ inputs.forecast_job_id }}
+      QUANTURA_WORKER_API_BASE: https://quantura.studio
+      QUANTURA_ENSEMBLE_WORKER_TOKEN: ${{ secrets.QUANTURA_ENSEMBLE_WORKER_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HOME: ${{ runner.temp }}/huggingface
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_HUB_DISABLE_PROGRESS_BARS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      TIMESFM_HF_ACCESS_APPROVED: ${{ vars.TIMESFM_HF_ACCESS_APPROVED }}
+      TIMESFM_COMMERCIAL_LICENSED: ${{ vars.TIMESFM_COMMERCIAL_LICENSED }}
+      ALLOW_NONCOMMERCIAL_TIMESFM: 'false'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Claim private input and report startup
+        id: claim
+        run: python scripts/ensemble_worker_bootstrap.py --job-file "$RUNNER_TEMP/private-forecast/job.json"
+      - name: Install locked forecast runtime
+        if: steps.claim.outputs.claimed == 'true'
+        run: python -m pip install --disable-pip-version-check -r requirements-ensemble-forecast.lock > "$RUNNER_TEMP/install.log" 2>&1 || { printf 'FORECAST_DEPENDENCY_INSTALL_FAILED\n'; exit 1; }
+      - name: Run forecast with private inputs
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          python -m ensemble_forecasting.cli --forecast-job-id "$FORECAST_JOB_ID" --claimed-job-file "$RUNNER_TEMP/private-forecast/job.json" > "$RUNNER_TEMP/receipt.json" 2> "$RUNNER_TEMP/forecast.log" || { printf 'FORECAST_EXECUTION_FAILED; see saved request for error code\n'; exit 1; }
+          cat "$RUNNER_TEMP/receipt.json"
+      - name: Report startup or execution failure
+        if: failure()
+        run: python scripts/ensemble_worker_bootstrap.py --job-file "$RUNNER_TEMP/private-forecast/job.json" --notify-failure
+      - name: Remove private inputs and transient model files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/private-forecast" "$RUNNER_TEMP/forecast.log" "$RUNNER_TEMP/install.log" "$HF_HOME"

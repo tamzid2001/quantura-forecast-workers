@@ -1,0 +1,5 @@
+# Python 3.12 Linux CPU production worker. Reuse the hash-locked, exercised
+# research environment instead of a second divergent set of model dependencies.
+# Install at image/job setup only, never inside a web request.
+--require-hashes
+-r market_research/requirements.lock

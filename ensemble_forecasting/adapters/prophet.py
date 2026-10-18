@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import time
+
+import numpy as np
+import pandas as pd
+
+from ..schemas import (
+    ForecastRequest,
+    ModelForecast,
+    PreparedSeries,
+    canonical_quantile_string,
+)
+from ..validation import coerce_quantile_horizon, monotonic_rearrangement
+from .base import ForecastAdapter, ModelExecutionError, package_versions
+
+
+def seasonality_configuration(timestamps):
+    """Choose identifiable Fourier terms from observed spacing, never outcomes.
+
+    Require two observed cycles and stay below the sampling Nyquist limit.
+    A yearly series cannot identify within-year seasonality; monthly data
+    cannot identify a weekly cycle. Irregular gaps use the median spacing.
+    """
+    days = np.diff(timestamps.asi8) / (86400 * 1e9)
+    step = float(np.median(days[days > 0]))
+    span = (timestamps[-1] - timestamps[0]).total_seconds() / 86400
+    def order(period, maximum):
+        return max(0, min(maximum, int(np.floor(period / (2 * step))) - 1)) if span >= 2 * period else 0
+    settings = {name + "_seasonality": order(period, maximum) or False
+                for name, period, maximum in [("daily", 1, 4), ("weekly", 7, 3), ("yearly", 365.25, 10)]}
+    return settings, order(30.5, 5)
+
+
+class ProphetAdapter(ForecastAdapter):
+    model_id = "prophet"
+
+    def forecast(
+        self,
+        series: PreparedSeries,
+        timestamps: tuple[str, ...],
+        request: ForecastRequest,
+    ) -> ModelForecast:
+        started = time.monotonic()
+        try:
+            from prophet import Prophet
+        except ImportError as exc:
+            raise ModelExecutionError(
+                self.model_id, "MODEL_DEPENDENCY_MISSING"
+            ) from exc
+        train_timestamps = pd.to_datetime(list(series.timestamps), utc=True).tz_convert(
+            None
+        )
+        train = pd.DataFrame(
+            {"ds": train_timestamps, "y": series.transformed_values.astype(np.float64)}
+        )
+        span_days = (train_timestamps[-1] - train_timestamps[0]).total_seconds() / 86400
+        refined = request.model_policies.get(self.model_id) == "frequency_aware_v2"
+        if refined:
+            seasonalities, monthly_order = seasonality_configuration(train_timestamps)
+        else:
+            seasonalities = dict(daily_seasonality=False,
+                                 weekly_seasonality=span_days >= 14,
+                                 yearly_seasonality=span_days >= 365)
+            monthly_order = 5 if span_days >= 90 else 0
+        model = Prophet(
+            **seasonalities,
+            changepoint_prior_scale=0.05,
+            seasonality_prior_scale=10.0,
+            uncertainty_samples=500,
+            mcmc_samples=0,
+        )
+        if request.calendar in {"NYSE", "XNYS", "NASDAQ", "XNAS"}:
+            model.add_country_holidays(country_name="US")
+        if monthly_order:
+            model.add_seasonality(name="monthly", period=30.5, fourier_order=monthly_order)
+        fit_options = {}
+        warnings = []
+        if len(train) == 2:
+            # Newton can drive sigma_obs to zero for a two-point exact line,
+            # overflow Stan's GLM, or run indefinitely. Keep the real inputs
+            # and Prophet posterior; use the converged BFGS optimizer instead.
+            # Do not accept unconverged fits or fall back to the failing Newton
+            # path. Longer histories retain their existing optimizer policy.
+            model.stan_backend.set_options(newton_fallback=False)
+            fit_options = {"algorithm": "BFGS", "seed": int(series.dataset_hash[:8], 16),
+                           "timeout": 20, "require_converged": True}
+            warnings.append("PROPHET_TWO_POINT_BFGS: two observations cannot establish calibrated uncertainty; short-history research only.")
+        try:
+            model.fit(train, **fit_options)
+            future = pd.DataFrame(
+                {"ds": pd.to_datetime(list(timestamps), utc=True).tz_convert(None)}
+            )
+            # Prophet's posterior predictive draw uses NumPy's process RNG.
+            # Seed only this draw from the immutable prepared dataset, then
+            # restore the caller's RNG so retries reproduce the quantiles
+            # without perturbing other sequential model adapters.
+            rng_state = np.random.get_state()
+            try:
+                np.random.seed(int(series.dataset_hash[:8], 16))
+                samples = np.asarray(
+                    model.predictive_samples(future)["yhat"], dtype=np.float64
+                )
+            finally:
+                np.random.set_state(rng_state)
+        except Exception as exc:
+            raise ModelExecutionError(
+                self.model_id, "MODEL_INFERENCE_FAILED", retryable=False
+            ) from exc
+        if samples.ndim != 2:
+            raise ModelExecutionError(self.model_id, "INVALID_MODEL_OUTPUT")
+        if (
+            samples.shape[0] != request.prediction_length
+            and samples.shape[1] == request.prediction_length
+        ):
+            samples = samples.T
+        if samples.shape[0] != request.prediction_length:
+            raise ModelExecutionError(self.model_id, "INVALID_MODEL_OUTPUT")
+        matrix = np.quantile(samples, q=request.quantiles, axis=1)
+        matrix = monotonic_rearrangement(
+            coerce_quantile_horizon(
+                matrix,
+                quantile_count=len(request.quantiles),
+                prediction_length=request.prediction_length,
+                model_name="Prophet",
+            )
+        )
+        return ModelForecast(
+            model_id="prophet",
+            checkpoint=None,
+            prediction_length=request.prediction_length,
+            requested_quantiles=request.quantiles,
+            available_quantiles=request.quantiles,
+            quantile_matrix=matrix,
+            quantile_provenance={
+                canonical_quantile_string(q): "posterior_predictive_sample"
+                for q in request.quantiles
+            },
+            device="cpu",
+            duration_seconds=time.monotonic() - started,
+            package_versions=package_versions(["prophet", "numpy"]),
+            warnings=warnings,
+        )
