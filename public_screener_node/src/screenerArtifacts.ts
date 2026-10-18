@@ -24,7 +24,7 @@ export function decodeSnapshotZip(bytes:Buffer,feed:string,digest?:string):Publi
 }
 export class ScreenerArtifactReader {
   private cached=new Map<string,{until:number;value:Promise<PublicSnapshot>}>();
-  constructor(private request:typeof fetch=fetch,private owner="tamzid2001",private repo="stockssagemakerdata",private shared=runtime){}
+  constructor(private request:typeof fetch=fetch,private owner=process.env.GITHUB_SCREENER_REPO_OWNER || "tamzid2001",private repo=process.env.GITHUB_SCREENER_REPO_NAME || "quantura-forecast-workers",private shared=runtime){}
   private headers(){const token=process.env.GITHUB_ACTIONS_TOKEN || process.env.GITHUB_TOKEN;return {Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2026-03-10","User-Agent":"quantura-public-screener",...(token?{Authorization:`Bearer ${token}`}:{})};}
   private root(){return `https://api.github.com/repos/${encodeURIComponent(this.owner)}/${encodeURIComponent(this.repo)}`;}
   private async json(path:string){const r=await this.request(this.root()+path,{headers:this.headers(),signal:AbortSignal.timeout(15_000),redirect:"error"});if(!r.ok)throw Error("screener_artifact_provider_unavailable");return r.json();}
@@ -85,7 +85,20 @@ export class ScreenerArtifactReader {
   }
   clear(){this.cached.clear();}
 }
-export const screenerArtifacts=new ScreenerArtifactReader();
+const currentArtifacts=new ScreenerArtifactReader();
+const archiveArtifacts=new ScreenerArtifactReader(fetch,"tamzid2001","stockssagemakerdata");
+export const screenerArtifacts={
+  async read(feed:string,date?:string):Promise<PublicSnapshot>{
+    try {return await currentArtifacts.read(feed,date);}
+    catch(error){
+      // Only retained pre-migration stock dates may come from the old repo.
+      // Never fall back on a failed integrity/provenance check or a current feed.
+      if(date && error instanceof Error && error.message==="screener_snapshot_not_found")return archiveArtifacts.read(feed,date);
+      throw error;
+    }
+  },
+  clear(){currentArtifacts.clear();archiveArtifacts.clear();}
+};
 export async function publicGameCatalog(){
   const feeds=["kalshi","polymarket_us"].flatMap(provider=>[0,1].map(shard=>`games-${provider}-${shard}`));
   // Do not turn missing shards into an apparently complete, empty screener.

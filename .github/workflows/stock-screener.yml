@@ -64,6 +64,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: requirements-screener-marketdata.lock
       - name: Install universe dependencies
         run: python -m pip install --disable-pip-version-check pandas requests lxml pandas-market-calendars==5.4.0
       - name: Read last validated publication
@@ -178,6 +179,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: requirements-screener-marketdata.lock
       - name: Install locked five-model inference environment
         run: |
           python -m pip install --no-cache-dir --disable-pip-version-check --requirement requirements-ensemble-forecast.lock --requirement requirements-screener-marketdata.lock
@@ -336,6 +338,15 @@ jobs:
               gh release delete-asset screener-latest "$asset" --yes
             fi
           done < <(gh release view screener-latest --json assets --jq '.assets[].name')
+      - name: Evaluate opt-in screener notifications
+        if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
+        env:
+          PUBLISH_TOKEN: ${{ secrets.QUANTURA_SCREENER_PUBLISH_TOKEN }}
+        run: |
+          test -n "$PUBLISH_TOKEN"
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 240 \
+            -X POST -H "Authorization: Bearer $PUBLISH_TOKEN" \
+            https://quantura.studio/api/internal/cron/screener-close
       - name: Write scan summary
         if: always()
         run: |
