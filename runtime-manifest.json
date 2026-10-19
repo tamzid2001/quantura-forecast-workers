@@ -1,5 +1,5 @@
 {
-  "source_commit": "276a01705e79101c09886774d345fe095302055b",
+  "source_commit": "1251a59e4212190bb167674e7a9a64724a8665c5",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -11,7 +11,7 @@
     ".github/workflows/stock-screener.yml": "aad6286324aa082727dcc88844575144bbd25db07bf041479826acf1bbd9654b",
     ".gitignore": "c664a956f79ec3fb71fce6dbd6fe424ce3ff7bfabb564bb6c62b17ca798bfebc",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
-    "README.md": "afe01b2a3028a2206189403ad55bc9f287786f2f00fa0df9dc8a6011ac17e9e9",
+    "README.md": "38cfa31fc726d3040b218ee5b713a7ea791645ed5c0533441dd8751dae9e2da9",
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
     "ensemble_forecasting/adapters/base.py": "03c44461cef246ecc358032cdd34e90106fe3f6c30a99e4401d98af564426bf1",

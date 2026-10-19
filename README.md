@@ -1,6 +1,6 @@
 # Quantura forecast workers
 
-Minimal on-demand execution runtime for Quantura. The application and its data remain in a separate private repository.
+Minimal on-demand execution runtime for Quantura. Application and research sources live in a separate repository with independently managed visibility. Customer requests remain private.
 
 Only repository maintainers can dispatch jobs. Dispatch inputs contain an opaque request ID. The worker claims its private input over an authenticated HTTPS callback, reports startup before dependency installation, runs the approved immutable model configuration, and returns results to Quantura. Customer inputs, model logs, and downloaded checkpoints are never published as artifacts or caches. Temporary inputs are removed when the job finishes.
 
