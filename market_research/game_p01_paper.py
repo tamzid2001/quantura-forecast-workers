@@ -245,7 +245,7 @@ def identities(rows, registry):
         if not pinned and {v["provider"] for v in values} != {"kalshi", "polymarket_us"}:
             continue
         fixture = next(iter(pinned)) if pinned else "game:"+hashlib.sha256(
-            json.dumps([pair, min(starts)//86400], sort_keys=True).encode()).hexdigest()[:24]
+            json.dumps([pair, int(min(starts)//86400)], sort_keys=True).encode()).hexdigest()[:24]
         for native_id in native:
             registry[native_id] = fixture
             result[native_id] = fixture
