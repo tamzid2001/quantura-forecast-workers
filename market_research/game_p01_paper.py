@@ -44,7 +44,7 @@ except ImportError:
 
 
 def stamp(value):
-    return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 
 
 def iso(value):
@@ -295,6 +295,11 @@ def candle_price(value):
     return None if raw is None else float(amount(raw))/(1 if isinstance(raw, str) and "." in raw else 100)
 
 
+def valid_quotes(points, start, end):
+    return sorted((p for p in points if start <= p["at"] <= end and 0 <= p["ask"] <= 1
+                   and (p.get("bid") is None or 0 <= p["bid"] <= p["ask"])), key=lambda p: p["at"])
+
+
 def market(row):
     symbol = quote(row["symbol"], safe="")
     if row["provider"] == "kalshi":
@@ -326,7 +331,7 @@ def prices(row, start, end):
                 bid, ask = (1-ask if ask is not None else None), (1-bid if bid is not None else None)
             if ask is not None:
                 points.append({"at": int(c["end_period_ts"]), "ask": round(ask, 6), "bid": None if bid is None else round(bid, 6)})
-        return sorted(points, key=lambda x: x["at"])
+        return valid_quotes(points, start, end)
     params = urlencode({"symbol": row["symbol"], "timestamp.startTimestamp": start, "timestamp.endTimestamp": end, "fidelity": 1})
     data = public_json(POLY+"/v1/price-history?"+params)
     points = []
@@ -334,7 +339,7 @@ def prices(row, start, end):
         ask, opposite = p.get("longPrice" if row["side"] == "long" else "shortPrice"), p.get("shortPrice" if row["side"] == "long" else "longPrice")
         if ask is not None:
             points.append({"at": int(p["timestamp"]), "ask": float(amount(ask)), "bid": None if opposite is None else float(1-amount(opposite))})
-    return sorted(points, key=lambda x: x["at"])
+    return valid_quotes(points, start, end)
 
 
 def candidates_at(rows, hour, registry):
@@ -440,7 +445,8 @@ def stats(state, directory):
         value = {**performance(portfolio["trades"]), "equity": portfolio["equity"]}
         result["portfolios"][name] = value
         event("game_p01_paper_stats", portfolio=name, **value)
-        print(f"{name} | W/L={value['wins']}/{value['losses']} win={value['win_rate_pct']}% "
+        win_rate = f"{value['win_rate_pct']:.2f}%" if value['win_rate_pct'] is not None else "n/a"
+        print(f"{name} | W/L={value['wins']}/{value['losses']} win={win_rate} "
               f"net=${value['net_pnl_usd']:.4f} realized DD=${value['max_realized_drawdown_usd']:.4f} "
               f"max streak W/L={value['max_win_streak']}/{value['max_loss_streak']} "
               f"recorded funding=${value['historical_minimum_cash_usd']:.4f} open={value['open_positions']}", flush=True)

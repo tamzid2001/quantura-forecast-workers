@@ -53,17 +53,17 @@ def fee(provider, quantity, price, coefficient=None):
 def eligible(candidate, rules=BASELINE):
     try:
         p, p1 = amount(candidate["price"]), amount(candidate["p01"])
-        decision = int(candidate["decision_at"])
+        decision = amount(candidate["decision_at"])
         return bool(candidate.get("identity_verified") and candidate.get("fixture_id")
                     and candidate.get("seven_model_verified")
                     and float(candidate["final_p01"]) > rules.final_p01_floor
                     and amount(rules.minimum_price) <= p < p1 <= 1
                     and (rules.maximum_discount is None or p1-p <= amount(rules.maximum_discount))
-                    and int(candidate["published_at"]) <= int(candidate["signal_at"]) < decision
-                    and decision <= int(candidate["signal_at"])+60
-                    and int(candidate["game_start"]) < int(candidate["signal_at"]) <= int(candidate["forecast_end"])
-                    and int(candidate["quote_at"]) <= decision <= int(candidate["quote_at"])+60
-                    and (not candidate.get("market_close") or decision < int(candidate["market_close"])))
+                    and amount(candidate["published_at"]) <= amount(candidate["signal_at"]) < decision
+                    and decision <= amount(candidate["signal_at"])+60
+                    and amount(candidate["game_start"]) < amount(candidate["signal_at"]) <= amount(candidate["forecast_end"])
+                    and amount(candidate["quote_at"]) <= decision <= amount(candidate["quote_at"])+60
+                    and (not candidate.get("market_close") or decision < amount(candidate["market_close"])))
     except (KeyError, ValueError, TypeError, ArithmeticError):
         return False
 
