@@ -15,7 +15,6 @@ import gzip
 import hashlib
 import io
 import json
-import os
 from pathlib import Path
 import re
 import ssl
@@ -147,8 +146,8 @@ def validate_state(state):
 def restore(now):
     available = artifacts(ARTIFACT)
     if not available:
-        activated = os.environ.get("GAMES_P01_PAPER_ACTIVATED_AT")
-        if activated and now-stamp(activated) > 3600:
+        prior = github("actions/workflows/games-p01-paper.yml/runs?status=completed&per_page=1").get("workflow_runs", [])
+        if prior:
             raise RuntimeError("MISSING_CUMULATIVE_CHECKPOINT_REQUIRES_REVIEW")
         event("paper_initialized", activation_at=iso(now), first_signal_at=iso((now//3600+1)*3600))
         return fresh_state(now)

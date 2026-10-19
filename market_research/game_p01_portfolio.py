@@ -39,6 +39,8 @@ def fee(provider, quantity, price, coefficient=None):
     if q <= 0 or not 0 < p < 1:
         raise ValueError("INVALID_FILL")
     theta = amount(coefficient if coefficient is not None else ".0695" if provider == "polymarket_us" else ".07")
+    if not 0 <= theta <= 1:
+        raise ValueError("INVALID_FEE_COEFFICIENT")
     raw = theta * q * p * (1-p)
     if provider == "kalshi":
         # Conservative general M=1 total-cash cent rounding, not account fees.
