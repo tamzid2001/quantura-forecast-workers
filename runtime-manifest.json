@@ -1,5 +1,5 @@
 {
-  "source_commit": "1251a59e4212190bb167674e7a9a64724a8665c5",
+  "source_commit": "10fc36fc7af1e8e17a638599e44ee34ce0bfb29d",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -61,6 +61,6 @@
     "scripts/quant_screener_pipeline.py": "acac69ae66f5171bcf38a29c65f5f616615c79cd984f2d98d2f8d99ccc40bc92",
     "scripts/run_backend_schedules.py": "6f15b8fd586bfd67ddf57495204f7077fc7280fd56ce5684cb5298368c93d1a3",
     "scripts/screener_schedule.py": "bbd2bff972e863ad6040ebd00fce442f48486b0406d3270273619bdff254640e",
-    "scripts/weekly_screener.py": "a7085950d44fe6b6e68545c9e4ae0ca03b424c7b81dd4996a731a334651a5cb4"
+    "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859"
   }
 }

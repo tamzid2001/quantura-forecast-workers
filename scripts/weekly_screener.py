@@ -39,6 +39,74 @@ def weekly_configuration() -> dict[str, Any]:
     }
 
 
+FROZEN_FIVE_MODEL_ENGINE = "quantura_weekly_ensemble_v2"
+# Frozen from the last v2 screener profile, before the seven-model upgrade.
+# Historical campaign hashes must not follow later production registry changes.
+_FROZEN_FIVE_MODEL_JSON = r'''
+{
+    "prediction_length": 7,
+    "horizon_mode": "trading_sessions",
+    "frequency": "1D",
+    "calendar": "NYSE",
+    "quantiles": [
+        0.01,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        0.9,
+        0.99
+    ],
+    "context_length": 512,
+    "transform": "log",
+    "model_failure_policy": "fail",
+    "models": {
+        "prophet": {
+            "enabled": true,
+            "weight": 0.2
+        },
+        "toto": {
+            "enabled": true,
+            "weight": 0.2
+        },
+        "granite": {
+            "enabled": true,
+            "weight": 0.2
+        },
+        "chronos": {
+            "enabled": true,
+            "weight": 0.2
+        },
+        "timesfm": {
+            "enabled": true,
+            "weight": 0.2
+        }
+    },
+    "toto_variant": "4m",
+    "history_lag_sessions": 0,
+    "adjustment": "split",
+    "model_checkpoints": {
+        "prophet": null,
+        "toto": "Datadog/Toto-2.0-4m",
+        "granite": "ibm-granite/granite-timeseries-patchtst-fm-r2",
+        "chronos": "amazon/chronos-2",
+        "timesfm": "google/timesfm-3.0-pytorch"
+    },
+    "model_revisions": {
+        "toto": "8306a9801cf98c0f5ffe4b2dcc8f496e616d84d9",
+        "granite": "b125275f9204d37cbb81fe47b9cf5e08a521e829",
+        "chronos": "29ec3766d36d6f73f0696f85560a422f50e8498c",
+        "timesfm": "43046b85ec22d584a13f8098c2ed39c889e129c2"
+    }
+}
+'''
+
+
+def historical_five_model_configuration() -> dict[str, Any]:
+    """Independent copy of the pinned equal-weight research profile."""
+    return json.loads(_FROZEN_FIVE_MODEL_JSON)
+
+
 def configuration_hash() -> str:
     return hashlib.sha256(json.dumps(weekly_configuration(), sort_keys=True).encode()).hexdigest()
 
