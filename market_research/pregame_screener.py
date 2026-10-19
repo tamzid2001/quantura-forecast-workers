@@ -21,6 +21,11 @@ from .public_snapshots import previous, write as write_public
 NY = ZoneInfo("America/New_York")
 REPORT_FILENAME = "report-pregame-summary.json"
 GAME_QUANTILES = (.01, .25, .5, .75, .9, .99)
+EXPECTED_HISTORY_EXCLUSIONS = frozenset({
+    "TWO_GENUINE_HOURLY_OBSERVATIONS_REQUIRED",
+    "INSUFFICIENT_HISTORY_FOR_SEVEN_MODELS",
+    "HISTORY_TOO_STALE",
+})
 
 
 def game_models(observations, timesfm_available=None):
@@ -109,7 +114,7 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
     report = {"provider": source, "game_date": target_date, "eligible": 0, "successful": 0,
               "skipped": 0, "failed": 0, "partial": True, "run_status": "running",
               "shard": shard, "shards": shards, "refresh_published":refresh_published,
-              "discovery": {}, "discovery_pages": 0, "removed_expired": 0, "failures": []}
+              "discovery": {}, "discovery_pages": 0, "removed_expired": 0, "failures": [], "skip_reasons": {}}
     output = Path(os.environ.get("QUANTURA_RESEARCH_DIR", "/tmp/quantura-pregame"))
     output.mkdir(parents=True, exist_ok=True)
     # A bootstrap/provider failure must still leave an allowlisted encrypted report.
@@ -180,6 +185,9 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
                 quotes = provider.hourly_history(contract, cutoff - 10 * 86400, cutoff)
                 if len(quotes) < 2:
                     raise ValueError("TWO_GENUINE_HOURLY_OBSERVATIONS_REQUIRED")
+                # Minimum history is an eligibility boundary, not an inference
+                # failure. Never reduce the ensemble or fill missing history.
+                models = game_models(len(quotes))
                 if not original and not eligible(contract, time.time()):
                     report["skipped"] += 1
                     continue
@@ -198,7 +206,7 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
                 previous_handler = signal.signal(signal.SIGALRM, stop_at_start_hour)
                 signal.setitimer(signal.ITIMER_REAL, seconds_left)
                 try:
-                    forecast = forecast_window(quotes, horizon, models=game_models(len(quotes)), quantiles=GAME_QUANTILES, frequency="1h", failure_policy="fail", weight_mode="auto")
+                    forecast = forecast_window(quotes, horizon, models=models, quantiles=GAME_QUANTILES, frequency="1h", failure_policy="fail", weight_mode="auto")
                 finally:
                     signal.setitimer(signal.ITIMER_REAL, 0)
                     signal.signal(signal.SIGALRM, previous_handler)
@@ -215,6 +223,11 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
                 report["successful"] += 1
                 print(json.dumps({"event": "pregame_published", "provider": source, "id": doc["id"], "hours": len(quotes), "models":doc["models"], "quantiles": list(doc["predictions"][0]["quantiles"]), "retrospective": bool(original)}), flush=True)
             except (ValueError, RuntimeError, TimeoutError) as error:
+                if str(error) in EXPECTED_HISTORY_EXCLUSIONS:
+                    report["skipped"] += 1
+                    report["skip_reasons"][str(error)] = report["skip_reasons"].get(str(error), 0) + 1
+                    print(json.dumps({"event": "pregame_ineligible", "contract_id": contract["contractId"], "code": str(error)}), flush=True)
+                    continue
                 if str(error) == "GAME_START_HOUR_REACHED" or (not original and not eligible(contract, time.time())):
                     report["skipped"] += 1
                     continue
@@ -235,7 +248,7 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
         if catalog is not None and report["run_status"] != "failed":
             try:
                 write_public(feed, {"items": list(catalog.values()), "status": {k: report[k] for k in
-                    ("provider", "game_date", "eligible", "successful", "skipped", "failed", "partial", "run_status", "shard", "shards", "updated_at")}},
+                    ("provider", "game_date", "eligible", "successful", "skipped", "skip_reasons", "failed", "partial", "run_status", "shard", "shards", "updated_at")}},
                     os.environ.get("QUANTURA_PUBLIC_DIR", "/tmp/quantura-public-pregame"))
             except Exception:
                 status_failed = True

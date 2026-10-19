@@ -1,0 +1,30 @@
+name: Quantura Backend Schedules
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Existing production maintenance job
+        type: choice
+        default: scheduled
+        options: [scheduled, autopilot-reconcile, automation-schedules, forecast-boundary-alerts, forecast-lifecycle, screener-close, fiscaldata-refresh, social-dispatch, forecast-report, social-planner, newsletter-daily, newsletter-weekly]
+permissions:
+  contents: read
+concurrency:
+  group: quantura-backend-schedules
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: github.event_name == 'workflow_dispatch' || vars.PRODUCTION_MAINTENANCE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Run existing production schedule
+        env:
+          QUANTURA_SCHEDULED_WORKER_TOKEN: ${{ secrets.QUANTURA_SCHEDULED_WORKER_TOKEN }}
+          REQUESTED_JOB: ${{ inputs.job || 'scheduled' }}
+        run: python3 scripts/run_backend_schedules.py "$REQUESTED_JOB"

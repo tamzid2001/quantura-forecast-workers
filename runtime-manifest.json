@@ -1,15 +1,17 @@
 {
-  "source_commit": "1910242fb2be1616d768b300075047fa21c30832",
+  "source_commit": "276a01705e79101c09886774d345fe095302055b",
   "files": {
+    ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
     ".github/workflows/games-p01-paper.yml": "ba62e75ff0e0d7e40766c8fa08c7fee727eb1f1ade045fc275774579cf3e3fcd",
     ".github/workflows/hourly-game-screener.yml": "f465169d750499f658d2ae06b636cbcd57491ca69d91e1ac98e92ab5de4ceb51",
     ".github/workflows/hourly-perpetual-screener.yml": "b5a7609cb9c184e5cee0f26947075db064cf70971117d28f2d48a69fde44700e",
+    ".github/workflows/metered-billing.yml": "286f10797376106e50c7d2a3cfd936ba2b63322081f795f3f98293cec77d82d8",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
     ".github/workflows/stock-screener.yml": "aad6286324aa082727dcc88844575144bbd25db07bf041479826acf1bbd9654b",
     ".gitignore": "c664a956f79ec3fb71fce6dbd6fe424ce3ff7bfabb564bb6c62b17ca798bfebc",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
-    "README.md": "0d244085885eb499d93da38357e58cdae8e0e1ee75a22e64442cca073ca30b3b",
+    "README.md": "afe01b2a3028a2206189403ad55bc9f287786f2f00fa0df9dc8a6011ac17e9e9",
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
     "ensemble_forecasting/adapters/base.py": "03c44461cef246ecc358032cdd34e90106fe3f6c30a99e4401d98af564426bf1",
@@ -40,7 +42,7 @@
     "market_research/forecast.py": "8c717b6ea955e00ad775044b5fb0c8fb643a8afdf3531b9e22c2aafa30666ac1",
     "market_research/game_p01_paper.py": "9140ad5346bfa17ccca7635f9d0a3b88f6c79f89a968d2eadc16f9d281b86de9",
     "market_research/game_p01_portfolio.py": "f7e6e576818c0841a5dbc2a5a662a502f44830e2adace4fe20b038764abb3e6a",
-    "market_research/pregame_screener.py": "67b781106145408557708b0ca4a0aebf1d9fad77fba730503d3e256d2fc80b7e",
+    "market_research/pregame_screener.py": "80bb4f68b33fe795721ddbc8056b53dde2ca72047b7d1cbe825f087599f991ba",
     "market_research/provider.py": "4472b478aec2f0be5cb67e894649fa73d2fc54863e73dfa43fe00691c2fa5182",
     "market_research/public_snapshots.py": "c033e2df9a89b1cdba6f268a75d318480040f6acc85042bc7c4291d31420e1eb",
     "market_research/requirements.lock": "c31f3a67f987e1255dbf254f98fc6e686cd1d4fc30dfb7af4c8f6eb01cd8597e",
@@ -57,6 +59,7 @@
     "requirements-screener-marketdata.lock": "5e14c15d1a7c6d8c3e65e90d4ef942df87f6326854e87dcc9cdcc4885f537b6d",
     "scripts/ensemble_worker_bootstrap.py": "cf2683b9efcc25fc45a42ad6dde1b24ac0654639fc88646a8d86d20a8dff64d8",
     "scripts/quant_screener_pipeline.py": "acac69ae66f5171bcf38a29c65f5f616615c79cd984f2d98d2f8d99ccc40bc92",
+    "scripts/run_backend_schedules.py": "6f15b8fd586bfd67ddf57495204f7077fc7280fd56ce5684cb5298368c93d1a3",
     "scripts/screener_schedule.py": "bbd2bff972e863ad6040ebd00fce442f48486b0406d3270273619bdff254640e",
     "scripts/weekly_screener.py": "a7085950d44fe6b6e68545c9e4ae0ca03b424c7b81dd4996a731a334651a5cb4"
   }

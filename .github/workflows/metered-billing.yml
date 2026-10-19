@@ -1,0 +1,41 @@
+name: Quantura Metered Billing Delivery
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: quantura-metered-billing-delivery
+  cancel-in-progress: false
+jobs:
+  deliver:
+    if: github.event_name == 'workflow_dispatch' || vars.METERED_BILLING_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Deliver pending forecast usage
+        env:
+          WORKER_TOKEN: ${{ secrets.QUANTURA_METERED_BILLING_WORKER_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.error, urllib.request
+          token = os.environ['WORKER_TOKEN']
+          if len(token) < 32:
+              raise SystemExit('WORKER_CREDENTIAL_MISSING')
+          request = urllib.request.Request('https://quantura.studio/api/internal/metered-billing/flush',
+              data=b'{}', headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'}, method='POST')
+          try:
+              with urllib.request.urlopen(request, timeout=240) as response:
+                  result = json.load(response)
+              if result.get('error') or result.get('ok') is False:
+                  raise SystemExit('METERED_USAGE_DELIVERY_FAILED')
+              # Never publish subscription IDs, customer details or raw server errors.
+              data = result.get('data', {})
+              counts = {key:value for key,value in data.items() if isinstance(value,(int,float,bool)) and not isinstance(value,str)}
+              print(json.dumps({'event':'metered_usage_delivery','ok':True,'counts':counts}))
+          except urllib.error.HTTPError as error:
+              raise SystemExit('METERED_USAGE_HTTP_'+str(error.code)) from None
+          except (OSError, ValueError):
+              raise SystemExit('METERED_USAGE_DELIVERY_UNAVAILABLE') from None
+          PY
