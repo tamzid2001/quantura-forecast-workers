@@ -26,6 +26,11 @@ on:
         type: boolean
         required: false
         default: false
+      skip_if_published:
+        description: "Recovery check: reuse an already validated current-profile publication"
+        type: boolean
+        required: false
+        default: false
   schedule:
     - cron: "17 * * * *" # Catch up the latest unpublished NYSE close, even after Actions delays.
 
@@ -85,9 +90,10 @@ jobs:
         id: session
         env:
           EVENT_NAME: ${{ github.event_name }}
+          SKIP_IF_PUBLISHED: ${{ inputs.skip_if_published || false }}
         run: |
           args=()
-          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then args+=(--manual); fi
+          if [[ "$EVENT_NAME" == workflow_dispatch && "$SKIP_IF_PUBLISHED" != true ]]; then args+=(--manual); fi
           python scripts/screener_schedule.py "${args[@]}" --publication-manifest screener-work/published/run-manifest.json >> "$GITHUB_OUTPUT"
       - name: Generate S&P 500, Nasdaq, SPY, and earnings universe
         if: steps.session.outputs.should_run == 'true'
