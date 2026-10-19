@@ -1,5 +1,5 @@
 {
-  "source_commit": "685de9245fa0cf3dfb9f7d9ab8b733eb43f70d08",
+  "source_commit": "e9102e9058dd49bc17ee6ff6d556574c9df042b6",
   "files": {
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
     ".github/workflows/hourly-game-screener.yml": "f465169d750499f658d2ae06b636cbcd57491ca69d91e1ac98e92ab5de4ceb51",
@@ -27,7 +27,7 @@
     "ensemble_forecasting/ensemble.py": "70802b8d69ada3570cc3b9f4abc0d7be170ae0ed7912f9b7618d5064bca975e7",
     "ensemble_forecasting/evaluation.py": "fd1b83719d34bdbd7b658197f8337ae28adebf4c9e739ed76264263413daa901",
     "ensemble_forecasting/frequencies.py": "17db5b4b0181dec1002d62f3fcd62cadfe01dca8e1a3f8dfd201f555450d2968",
-    "ensemble_forecasting/kalshi_perp_screener.py": "4e82f9f590799c55dbbcc1ad216e77523f0cb160dde85d3c9bd956dd721fb8a2",
+    "ensemble_forecasting/kalshi_perp_screener.py": "d11b8908de4d1e92bceb5daeec42acc62a81d366c560375a508a1117f8cc4fda",
     "ensemble_forecasting/loss_weights.py": "eaab30ecbe45a3a144cc4dfa19d2efdfe8b62fabe85cc56530e4d56299784b90",
     "ensemble_forecasting/preprocessing.py": "7169c15f2f68d1a0e986ee8438b40dd38559adc7d710eab52290656e89c915f8",
     "ensemble_forecasting/schemas.py": "ed412f9a48f32d32da062ce80ef804bb8a0e968b4a643d9f2001be10211dd1dc",
@@ -44,7 +44,7 @@
     "public_screener_node/package-lock.json": "babd16cdd053625198d0029996d5bcc8347381b0807631e4cec56934a16c594d",
     "public_screener_node/package.json": "3c7d1bf86521c3185b4479b0f46cef09e381a381abd43933d36aad9daee564d1",
     "public_screener_node/scripts/publish-stock-artifact.cjs": "2ac4d6fe7fb0393c9928cefd60123c3879484b4a58f64f010c0d080a81287b98",
-    "public_screener_node/src/quantScreener.ts": "684bda896c00ffb75170bb550f8345764695283eb8f118e6eaf4e2a56e565883",
+    "public_screener_node/src/quantScreener.ts": "be6e278d66e00a2565bafaf9b67586248990f164048eda28114c4bf75f34ae0f",
     "public_screener_node/src/screenerArtifacts.ts": "2575f9ed35222d439957970b61b993c0e1e3fc2c9917c885e8f0146181990f9f",
     "public_screener_node/src/screenerEnsembleProfile.ts": "4960756e569c30f901ff10657473d76b8395cb952e24a9bbf3acc80a9eb301e3",
     "public_screener_node/src/screenerHistory.ts": "6f8f97fe61f560b6b412225db9be567d466556c38f958d2c67c5229af7823ba4",

@@ -120,7 +120,10 @@ def run(shard=0, shards=1, discovery_only=False):
     needs_models = False
     for market in selected:
         try:
-            cutoff = int(time.time())//86400*86400
+            # Kalshi's completed daily periods need not end at UTC midnight.
+            # Use their actual end timestamps; a midnight floor delays the
+            # 04:00 UTC daily close by up to twenty hours.
+            cutoff = int(time.time())
             candles = get(f"/margin/markets/{market['ticker']}/candlesticks", {"start_ts": cutoff-999*86400, "end_ts": cutoff, "period_interval": 1440, "include_latest_before_start": "false"})
             if candles.get("ticker") != market["ticker"]:
                 raise ValueError("TICKER_MISMATCH")
