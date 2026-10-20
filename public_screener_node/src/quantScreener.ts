@@ -199,6 +199,7 @@ function earningsDiffDays(value: unknown, today: dtShim = new Date()): number | 
 type dtShim = Pick<Date, "getUTCFullYear" | "getUTCMonth" | "getUTCDate">;
 
 export function rowMatchesQuery(row: QuantScreenerRow, query: QuantScreenerQuery, today: Date = new Date()): boolean {
+  if(row.quantile_comparison_available===false && (query.positions.length || query.quantileRules?.length))return false;
   if (query.signal === "cutoff_buy") {
     if ((row.cutoff_p99_signal as {value?: string} | null)?.value !== "buy") return false;
   } else if (query.signal && query.signal !== "all" && row.signal !== query.signal) return false;
@@ -349,7 +350,7 @@ export function publicScreenerRow(row: QuantScreenerRow): QuantScreenerRow {
 /** Export the same filtered price/quantile snapshot, with formula-safe text fields. */
 export function screenerRowsCsv(rows: QuantScreenerRow[]): string {
   const levels=["p01","p10","p25","p50","p75","p90","p99"];
-  const keys=["ticker","company_name","actual_price","actual_price_timestamp","quote_source","quote_session","forecast_comparison_date",...levels,...levels.flatMap(q=>["min","max","avg"].map(s=>`${q}_${s}`)),"last_forecast_update","forecast_engine","split_status"];
+  const keys=["ticker","company_name","actual_price","actual_price_timestamp","quote_source","quote_session","quote_kind","price_tracking_status","latest_session_close","latest_session_close_at","forecast_comparison_date",...levels,...levels.flatMap(q=>["min","max","avg"].map(s=>`${q}_${s}`)),"last_forecast_update","forecast_engine","split_status"];
   const cell=(value:unknown)=>{let text=String(value??"");if(typeof value!=="number" && /^[\s]*[=+@-]/.test(text))text=`'${text}`;return `"${text.replace(/"/g,'""')}"`;};
   return [keys.join(","),...rows.map(row=>{
     const values:Record<string,unknown>=publicScreenerRow(row);

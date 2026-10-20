@@ -1,5 +1,5 @@
 {
-  "source_commit": "4a90a84e508afbfb876e48e70f6ecb2a3b73a1ea",
+  "source_commit": "77018c9e16ee08e41226576a62a041a7d516b3b2",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -42,7 +42,7 @@
     "market_research/engine.py": "201f12b4adb1faf6377e92662c013a9fed0c0979cfa84a225ec3c40b1b13bf3c",
     "market_research/forecast.py": "8c717b6ea955e00ad775044b5fb0c8fb643a8afdf3531b9e22c2aafa30666ac1",
     "market_research/game_p01_books.py": "cac1af57ff6f2889085cdcbcc1fb62f2e89d90fc2187f635ea1d1e6439acec98",
-    "market_research/game_p01_limit.py": "1ba78f975f21c1df58aff12b0dc8bb83db22137ad3a34ef35b08fe15be04a574",
+    "market_research/game_p01_limit.py": "4020d2852b14f0a390a2df5a780529e562e2932c75ea83b51796927cab6487d6",
     "market_research/game_p01_limit_worker.py": "2ae254bb15b2cfadbc0e68cce93527e8b660bc0fba8df7c528fb71dbb6c91025",
     "market_research/game_p01_paper.py": "9140ad5346bfa17ccca7635f9d0a3b88f6c79f89a968d2eadc16f9d281b86de9",
     "market_research/game_p01_portfolio.py": "f7e6e576818c0841a5dbc2a5a662a502f44830e2adace4fe20b038764abb3e6a",
@@ -53,7 +53,7 @@
     "public_screener_node/package-lock.json": "babd16cdd053625198d0029996d5bcc8347381b0807631e4cec56934a16c594d",
     "public_screener_node/package.json": "3c7d1bf86521c3185b4479b0f46cef09e381a381abd43933d36aad9daee564d1",
     "public_screener_node/scripts/publish-stock-artifact.cjs": "2ac4d6fe7fb0393c9928cefd60123c3879484b4a58f64f010c0d080a81287b98",
-    "public_screener_node/src/quantScreener.ts": "be6e278d66e00a2565bafaf9b67586248990f164048eda28114c4bf75f34ae0f",
+    "public_screener_node/src/quantScreener.ts": "840300886f0e7958fdc1a43495c543fcb76bf23d9f845085c79ba7030b00d96f",
     "public_screener_node/src/screenerArtifacts.ts": "2575f9ed35222d439957970b61b993c0e1e3fc2c9917c885e8f0146181990f9f",
     "public_screener_node/src/screenerEnsembleProfile.ts": "4960756e569c30f901ff10657473d76b8395cb952e24a9bbf3acc80a9eb301e3",
     "public_screener_node/src/screenerHistory.ts": "6f8f97fe61f560b6b412225db9be567d466556c38f958d2c67c5229af7823ba4",

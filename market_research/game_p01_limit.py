@@ -214,12 +214,23 @@ def paper_observe(order, book, now):
     limit = amount(order["price"])
     if any(amount(p) == limit for p, _ in book["asks"]):
         order["touch_samples"] = order.get("touch_samples", 0)+1
-    visible = sum((amount(q) for p, q in book["asks"] if 0 < amount(p) < limit), Decimal(0))
+    consumed = order.setdefault("consumed_depth", {})
+    available = sorted([(amount(p), max(amount(0), amount(q)-amount(consumed.get(str(amount(p)), 0))))
+                        for p, q in book["asks"] if 0 < amount(p) < limit])
+    visible = sum((q for _, q in available), Decimal(0))
     left = amount(order["quantity"])-amount(order["filled"])
     step = amount(order["quantity_step"])
     quantity = (min(left, visible)/step).to_integral_value(rounding=ROUND_DOWN)*step
     if quantity <= 0:
         return
+    allocation = quantity
+    for observed_price, depth in available:
+        taken = min(allocation, depth)
+        key = str(observed_price)
+        consumed[key] = str(amount(consumed.get(key, 0))+taken)
+        allocation -= taken
+        if allocation == 0:
+            break
     # Charge the fixed resting limit (no favorable price improvement) and the
     # validated taker fee, even when a real passive fill might earn lower fees.
     cost = quantity*limit
