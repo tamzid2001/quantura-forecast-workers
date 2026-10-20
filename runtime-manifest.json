@@ -1,5 +1,5 @@
 {
-  "source_commit": "1f639da0570a352289c729ae221cca159605912a",
+  "source_commit": "ffa40132a99dff34bfc0af90c947e8599cd1af03",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -9,6 +9,7 @@
     ".github/workflows/hourly-perpetual-screener.yml": "b5a7609cb9c184e5cee0f26947075db064cf70971117d28f2d48a69fde44700e",
     ".github/workflows/metered-billing.yml": "286f10797376106e50c7d2a3cfd936ba2b63322081f795f3f98293cec77d82d8",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
+    ".github/workflows/sports-month-backtest.yml": "3f5c91d0671bcee2bfbe6101eb378a0fde4ca612c784fc0cfbe66ff151de8b30",
     ".github/workflows/stock-screener.yml": "aad6286324aa082727dcc88844575144bbd25db07bf041479826acf1bbd9654b",
     ".gitignore": "c664a956f79ec3fb71fce6dbd6fe424ce3ff7bfabb564bb6c62b17ca798bfebc",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
@@ -45,6 +46,7 @@
     "market_research/game_p01_hourly_comparison.py": "b526e4a6817dcd47e9fb7e9de6ee5cf95697f3589c744f913d16aa09446532b1",
     "market_research/game_p01_limit.py": "4020d2852b14f0a390a2df5a780529e562e2932c75ea83b51796927cab6487d6",
     "market_research/game_p01_limit_worker.py": "f3d49635b83d21615e9cae8dd955d73fb2fff3ba4a19b26e1d6ca6a9541ad4c5",
+    "market_research/game_p01_month.py": "0205e49f079f591d6f2bc8f4b32df2cd069078ec9b459918b6e06eb775641bf4",
     "market_research/game_p01_paper.py": "f1ed2908e0021f193144409c26e3e47a422808e16252f140c5ed182cf484a93e",
     "market_research/game_p01_portfolio.py": "f7e6e576818c0841a5dbc2a5a662a502f44830e2adace4fe20b038764abb3e6a",
     "market_research/pregame_screener.py": "80bb4f68b33fe795721ddbc8056b53dde2ca72047b7d1cbe825f087599f991ba",

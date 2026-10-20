@@ -1,0 +1,218 @@
+name: Sports month — seven-model pregame P01 comparison
+on:
+  workflow_dispatch:
+    inputs:
+      first:
+        type: string
+        default: '2026-09-20'
+      last:
+        type: string
+        default: '2026-10-19'
+      resume_run_id:
+        type: string
+        default: ''
+      code_sha:
+        type: string
+        default: ''
+      iteration:
+        type: string
+        default: '0'
+      previous_progress:
+        type: string
+        default: '0'
+      stagnant:
+        type: string
+        default: '0'
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: sports-month-${{ inputs.first }}-${{ inputs.last }}
+  cancel-in-progress: false
+env:
+  GH_TOKEN: ${{ github.token }}
+  PYTHONUNBUFFERED: '1'
+  FIRST: ${{ inputs.first }}
+  LAST: ${{ inputs.last }}
+  RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+  CODE_SHA: ${{ inputs.code_sha || github.sha }}
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      done: ${{ steps.inspect.outputs.done }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.code_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Restore previous catalog, validating its workflow
+        if: inputs.resume_run_id != ''
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN_ID" --jq '.path' | grep -Fx '.github/workflows/sports-month-backtest.yml'
+          gh run download "$RESUME_RUN_ID" --repo "$GITHUB_REPOSITORY" --name sports-month-catalog --dir work
+      - name: Enumerate both platforms without filtering on outcomes
+        continue-on-error: true
+        run: python -m market_research.game_p01_month catalog --directory work --first "$FIRST" --last "$LAST" --seconds 1500
+      - name: Read frozen catalog progress
+        id: inspect
+        run: |
+          python - <<'PY'
+          import gzip,json,os
+          with gzip.open('work/catalog.json.gz','rt') as f: state=json.load(f)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('done='+str(state['done']).lower()+'\n')
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sports-month-catalog
+          path: work/catalog.json.gz
+          retention-days: 90
+          if-no-files-found: error
+  replay:
+    needs: catalog
+    if: needs.catalog.outputs.done == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3]
+    env:
+      SHARD: ${{ matrix.shard }}
+      HF_HOME: ${{ runner.temp }}/sports-month-models
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      TIMESFM_COMMERCIAL_LICENSED: ${{ vars.TIMESFM_COMMERCIAL_LICENSED || 'false' }}
+      TIMESFM_HF_ACCESS_APPROVED: ${{ vars.TIMESFM_HF_ACCESS_APPROVED || 'false' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.code_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Restore shard checkpoint if this is a continuation
+        if: inputs.resume_run_id != ''
+        run: |
+          artifact="sports-month-shard-$SHARD"
+          count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN_ID/artifacts" --jq "[.artifacts[] | select(.name == \"$artifact\" and .expired == false)] | length")
+          if [ "$count" -gt 0 ]; then
+            gh run download "$RESUME_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir work
+            cache_count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN_ID/artifacts" --jq "[.artifacts[] | select(.name == \"sports-month-history-$SHARD\" and .expired == false)] | length")
+            if [ "$cache_count" -gt 0 ]; then gh run download "$RESUME_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sports-month-history-$SHARD" --dir work/history; fi
+          else
+            gh run download "$RESUME_RUN_ID" --repo "$GITHUB_REPOSITORY" --name sports-month-catalog --dir previous-catalog
+            python - <<'PY'
+          import gzip,json
+          with gzip.open('previous-catalog/catalog.json.gz','rt') as f: state=json.load(f)
+          if state['done']: raise SystemExit('Expected previous shard checkpoint is missing; refusing to discard frozen history.')
+          PY
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          name: sports-month-catalog
+          path: work
+      - name: Initialize checkpoint before installing models
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from market_research.game_p01_month import SCHEMA,save
+          shard=int(os.environ['SHARD']); path=Path(f'work/shard-{shard}.json.gz')
+          if not path.exists(): save(path,{'schema':SCHEMA,'shard':shard,'items':{}})
+          PY
+      - name: Install the production locked seven-model environment
+        run: python -m pip install --no-cache-dir --require-hashes -r market_research/requirements.lock
+      - name: Forecast and replay with time-bounded inference and durable ledgers
+        run: python -m market_research.game_p01_month replay --directory work --shard "$SHARD" --seconds 12000
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sports-month-shard-${{ matrix.shard }}
+          path: work/shard-${{ matrix.shard }}.json.gz
+          retention-days: 90
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sports-month-history-${{ matrix.shard }}
+          path: work/history/
+          retention-days: 3
+          if-no-files-found: warn
+  report:
+    needs: [catalog, replay]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      done: ${{ steps.progress.outputs.done }}
+      progress: ${{ steps.progress.outputs.progress }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.code_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Download only the compact ledger checkpoints, not raw history caches
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name sports-month-catalog --dir work
+          for shard in 0 1 2 3; do
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq "[.artifacts[] | select(.name == \"sports-month-shard-$shard\" and .expired == false)] | length")
+            if [ "$count" -gt 0 ]; then gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "sports-month-shard-$shard" --dir work; fi
+          done
+      - name: Export coverage, exact entry ledger and independently defined statistics
+        run: |
+          python -m market_research.game_p01_month report --directory work
+          cat work/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - id: progress
+        run: |
+          python - <<'PY'
+          import json,os
+          state=json.load(open('work/report.json'))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('done='+str(state['done']).lower()+'\nprogress='+str(state['progress'])+'\n')
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sports-month-report
+          path: |
+            work/REPORT.md
+            work/report.json
+            work/ledger.csv
+          retention-days: 90
+          if-no-files-found: error
+  continue:
+    needs: report
+    if: needs.report.outputs.done == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROGRESS: ${{ needs.report.outputs.progress }}
+      PREVIOUS_PROGRESS: ${{ inputs.previous_progress }}
+      STAGNANT: ${{ inputs.stagnant }}
+      ITERATION: ${{ inputs.iteration }}
+    steps:
+      - name: Continue automatically; stop repeated failures without discarding checkpoints
+        run: |
+          python - <<'PY'
+          import os,subprocess
+          progress=int(os.environ['PROGRESS']); previous=int(os.environ['PREVIOUS_PROGRESS'])
+          stagnant=0 if progress>previous else int(os.environ['STAGNANT'])+1
+          iteration=int(os.environ['ITERATION'])+1
+          if stagnant>=3 or iteration>=100:
+              raise SystemExit('Automatic continuation stopped: inspect coverage/errors; resume saved artifacts after fixing the cause.')
+          args=['gh','workflow','run','sports-month-backtest.yml','--repo',os.environ['GITHUB_REPOSITORY'],'--ref','main']
+          for key,value in {'first':os.environ['FIRST'],'last':os.environ['LAST'],'resume_run_id':os.environ['GITHUB_RUN_ID'],
+                            'code_sha':os.environ['CODE_SHA'],'iteration':str(iteration),'previous_progress':str(progress),'stagnant':str(stagnant)}.items():
+              args+=['-f',key+'='+value]
+          subprocess.run(args,check=True)
+          PY
