@@ -1,5 +1,5 @@
 {
-  "source_commit": "d79a0c72fae70b622b275db66c23aea7db3739ea",
+  "source_commit": "30bd1d04a1047b28b444caa07627cb459853dbb2",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -9,7 +9,8 @@
     ".github/workflows/hourly-perpetual-screener.yml": "b5a7609cb9c184e5cee0f26947075db064cf70971117d28f2d48a69fde44700e",
     ".github/workflows/metered-billing.yml": "286f10797376106e50c7d2a3cfd936ba2b63322081f795f3f98293cec77d82d8",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
-    ".github/workflows/sports-month-backtest.yml": "230f2ffad9dd53a9d5109f2ccbc398d22a7be1df4f982aec22fc803949943261",
+    ".github/workflows/sports-month-backtest.yml": "2820397d795d92547dd28598135631ccdd29feb1781d1ad73d3251ed34a47eca",
+    ".github/workflows/sports-month-watchdog.yml": "0c75a88cebf1f92256d03791e176dec8afc8015a0703c2cc97ad7f392f6d2a65",
     ".github/workflows/stock-screener.yml": "aad6286324aa082727dcc88844575144bbd25db07bf041479826acf1bbd9654b",
     ".gitignore": "c664a956f79ec3fb71fce6dbd6fe424ce3ff7bfabb564bb6c62b17ca798bfebc",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
@@ -53,6 +54,8 @@
     "market_research/provider.py": "4472b478aec2f0be5cb67e894649fa73d2fc54863e73dfa43fe00691c2fa5182",
     "market_research/public_snapshots.py": "c033e2df9a89b1cdba6f268a75d318480040f6acc85042bc7c4291d31420e1eb",
     "market_research/requirements.lock": "c31f3a67f987e1255dbf254f98fc6e686cd1d4fc30dfb7af4c8f6eb01cd8597e",
+    "market_research/sports_month_campaign.json": "1e85886fb6eea7553b81018b96f384fe49195e8a3cb0fc445e136afff3e1c45c",
+    "market_research/sports_month_watchdog.py": "644ad0b565a2d751de8bea80ee809076157ce5b702a3adeff29710a2b038a56f",
     "public_screener_node/package-lock.json": "babd16cdd053625198d0029996d5bcc8347381b0807631e4cec56934a16c594d",
     "public_screener_node/package.json": "3c7d1bf86521c3185b4479b0f46cef09e381a381abd43933d36aad9daee564d1",
     "public_screener_node/scripts/publish-stock-artifact.cjs": "2ac4d6fe7fb0393c9928cefd60123c3879484b4a58f64f010c0d080a81287b98",

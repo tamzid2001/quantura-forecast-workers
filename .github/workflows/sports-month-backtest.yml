@@ -182,8 +182,10 @@ jobs:
           python - <<'PY'
           import json,os
           state=json.load(open('work/report.json'))
+          counts=state['catalog_counts']; statuses=state['statuses']
+          progress=sum((counts.get('poly_events',0),counts.get('kalshi_events',0),statuses.get('complete',0),statuses.get('excluded',0)))
           with open(os.environ['GITHUB_OUTPUT'],'a') as f:
-              f.write('done='+str(state['done']).lower()+'\nprogress='+str(state['progress'])+'\n')
+              f.write('done='+str(state['done']).lower()+'\nprogress='+str(progress)+'\n')
           PY
       - uses: actions/upload-artifact@v7
         if: always()
@@ -199,7 +201,7 @@ jobs:
     needs: report
     # A catalog-only pass deliberately skips replay. Override GitHub's implicit
     # success() check so that skipped ancestor cannot suppress continuation.
-    if: always() && needs.report.result == 'success' && needs.report.outputs.done == 'false'
+    if: always() && needs.report.result == 'success' && needs.report.outputs.done == 'false' && vars.SPORTS_MONTH_BACKTEST_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:

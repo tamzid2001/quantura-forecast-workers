@@ -1,0 +1,10 @@
+{
+  "schema": "quantura-sports-month-campaign-v1",
+  "repository": "tamzid2001/quantura-forecast-workers",
+  "workflow": "sports-month-backtest.yml",
+  "first": "2026-09-20",
+  "last": "2026-10-19",
+  "root_run_id": 39492355926,
+  "code_sha": "a1b30ef9526bc39d3b26154a87437a8d687f3e3b",
+  "runtime_fingerprint": "eb11dc7f11952554ed3206c16cb8f9ccb8db7b2b9feeb0f69497065d4cf0834f"
+}

@@ -1,0 +1,36 @@
+name: Sports month — checkpoint recovery watchdog
+on:
+  schedule:
+    - cron: '2,17,32,47 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: sports-month-checkpoint-watchdog
+  cancel-in-progress: false
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CAMPAIGN_ENABLED: ${{ vars.SPORTS_MONTH_BACKTEST_ENABLED || 'false' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Resume only a validated unfinished study; never replace an active run
+        run: python -m market_research.sports_month_watchdog --enabled "$CAMPAIGN_ENABLED" --output watchdog-result.json
+      - name: Publish a secret-free watchdog receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sports-month-watchdog-result
+          path: watchdog-result.json
+          if-no-files-found: error
+          retention-days: 14
