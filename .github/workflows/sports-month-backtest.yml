@@ -85,7 +85,6 @@ jobs:
         shard: [0, 1, 2, 3]
     env:
       SHARD: ${{ matrix.shard }}
-      HF_HOME: ${{ runner.temp }}/sports-month-models
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       TIMESFM_COMMERCIAL_LICENSED: ${{ vars.TIMESFM_COMMERCIAL_LICENSED || 'false' }}
       TIMESFM_HF_ACCESS_APPROVED: ${{ vars.TIMESFM_HF_ACCESS_APPROVED || 'false' }}
@@ -120,6 +119,7 @@ jobs:
           path: work
       - name: Initialize checkpoint before installing models
         run: |
+          echo "HF_HOME=$RUNNER_TEMP/sports-month-models" >> "$GITHUB_ENV"
           python - <<'PY'
           import os
           from pathlib import Path

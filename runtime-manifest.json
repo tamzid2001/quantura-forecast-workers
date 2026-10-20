@@ -1,5 +1,5 @@
 {
-  "source_commit": "ffa40132a99dff34bfc0af90c947e8599cd1af03",
+  "source_commit": "29933418b15905ffb97aaae53ec3a1aeba93070b",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -9,7 +9,7 @@
     ".github/workflows/hourly-perpetual-screener.yml": "b5a7609cb9c184e5cee0f26947075db064cf70971117d28f2d48a69fde44700e",
     ".github/workflows/metered-billing.yml": "286f10797376106e50c7d2a3cfd936ba2b63322081f795f3f98293cec77d82d8",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
-    ".github/workflows/sports-month-backtest.yml": "3f5c91d0671bcee2bfbe6101eb378a0fde4ca612c784fc0cfbe66ff151de8b30",
+    ".github/workflows/sports-month-backtest.yml": "f94333a1be5ba6e80fb168fce32b594af8720c89216020b74f9f9847cf4603e0",
     ".github/workflows/stock-screener.yml": "aad6286324aa082727dcc88844575144bbd25db07bf041479826acf1bbd9654b",
     ".gitignore": "c664a956f79ec3fb71fce6dbd6fe424ce3ff7bfabb564bb6c62b17ca798bfebc",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
