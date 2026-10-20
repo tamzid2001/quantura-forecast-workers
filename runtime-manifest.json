@@ -1,5 +1,5 @@
 {
-  "source_commit": "77018c9e16ee08e41226576a62a041a7d516b3b2",
+  "source_commit": "2cd0ae13c7a43d95fc352a89a3feb56d1ac6ce76",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -43,7 +43,7 @@
     "market_research/forecast.py": "8c717b6ea955e00ad775044b5fb0c8fb643a8afdf3531b9e22c2aafa30666ac1",
     "market_research/game_p01_books.py": "cac1af57ff6f2889085cdcbcc1fb62f2e89d90fc2187f635ea1d1e6439acec98",
     "market_research/game_p01_limit.py": "4020d2852b14f0a390a2df5a780529e562e2932c75ea83b51796927cab6487d6",
-    "market_research/game_p01_limit_worker.py": "2ae254bb15b2cfadbc0e68cce93527e8b660bc0fba8df7c528fb71dbb6c91025",
+    "market_research/game_p01_limit_worker.py": "f3d49635b83d21615e9cae8dd955d73fb2fff3ba4a19b26e1d6ca6a9541ad4c5",
     "market_research/game_p01_paper.py": "9140ad5346bfa17ccca7635f9d0a3b88f6c79f89a968d2eadc16f9d281b86de9",
     "market_research/game_p01_portfolio.py": "f7e6e576818c0841a5dbc2a5a662a502f44830e2adace4fe20b038764abb3e6a",
     "market_research/pregame_screener.py": "80bb4f68b33fe795721ddbc8056b53dde2ca72047b7d1cbe825f087599f991ba",

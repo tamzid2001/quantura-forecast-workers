@@ -257,7 +257,7 @@ class Worker:
                 hour = int(now//3600*3600)
                 # Missed hours are coverage gaps, never historical live entries.
                 if self.journal.state["last_hour"] < hour:
-                    if 2 <= now-hour <= RULES.max_signal_age:
+                    if 60 <= now-hour <= RULES.max_signal_age:
                         try:
                             self.enter_hour(hour)
                         except (RuntimeError, ValueError, KeyError):
