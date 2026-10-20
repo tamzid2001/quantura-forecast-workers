@@ -23,6 +23,10 @@ on:
       stagnant:
         type: string
         default: '0'
+      catalog_seconds:
+        type: number
+        default: 1500
+        description: 'Catalog budget for this pass; automatic continuations use 1500 seconds'
 permissions:
   contents: read
   actions: write
@@ -36,6 +40,7 @@ env:
   LAST: ${{ inputs.last }}
   RESUME_RUN_ID: ${{ inputs.resume_run_id }}
   CODE_SHA: ${{ inputs.code_sha || github.sha }}
+  CATALOG_SECONDS: ${{ inputs.catalog_seconds || 1500 }}
 jobs:
   catalog:
     runs-on: ubuntu-latest
@@ -57,7 +62,7 @@ jobs:
           gh run download "$RESUME_RUN_ID" --repo "$GITHUB_REPOSITORY" --name sports-month-catalog --dir work
       - name: Enumerate both platforms without filtering on outcomes
         continue-on-error: true
-        run: python -m market_research.game_p01_month catalog --directory work --first "$FIRST" --last "$LAST" --seconds 1500
+        run: python -m market_research.game_p01_month catalog --directory work --first "$FIRST" --last "$LAST" --seconds "$CATALOG_SECONDS"
       - name: Read frozen catalog progress
         id: inspect
         run: |
