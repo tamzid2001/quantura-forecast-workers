@@ -27,6 +27,7 @@ from urllib.request import Request, urlopen
 import zipfile
 
 from .game_p01_portfolio import BASELINE, SHALLOW, amount, fill, performance, sample_equity, select
+from .game_p01_hourly_comparison import HOURLY_RULES, comparison_markdown, ensure_portfolios, fill_hourly, select_hourly
 
 REPO = "tamzid2001/quantura-forecast-workers"
 ARTIFACT = "quantura-games-p01-paper-v1"
@@ -124,22 +125,32 @@ def validate_run(artifact, workflow):
 
 
 def fresh_state(now):
-    return {"schema": 1, "mode": "paper_only", "activation_at": now,
+    state = {"schema": 1, "mode": "paper_only", "activation_at": now,
             "next_hour": (now//3600+1)*3600, "identities": {}, "coverage": {},
             "portfolios": {r.name: {"rules_hash": r.fingerprint(), "trades": [], "equity": {}}
                            for r in (BASELINE, SHALLOW)}}
+    ensure_portfolios(state, now)
+    return state
 
 
 def validate_state(state):
     if state.get("schema") != 1 or state.get("mode") != "paper_only":
         raise ValueError("INVALID_PAPER_CHECKPOINT")
-    for rule in (BASELINE, SHALLOW):
+    for rule in (BASELINE, SHALLOW, *HOURLY_RULES):
+        if rule in HOURLY_RULES and rule.name not in state["portfolios"]:
+            continue  # Old artifacts are upgraded only after validation.
         portfolio = state["portfolios"][rule.name]
         if portfolio["rules_hash"] != rule.fingerprint():
             raise ValueError("PAPER_RULES_CHANGED_NEW_PORTFOLIO_REQUIRED")
         performance(portfolio["trades"])
         if any(t["mode"] != "paper_only" or t["rules_hash"] != rule.fingerprint() for t in portfolio["trades"]):
             raise ValueError("INVALID_PAPER_LEDGER")
+        if rule in HOURLY_RULES:
+            activation = portfolio["activation_at"]
+            if (type(activation) is not int or activation < state["activation_at"]
+                    or portfolio["first_signal_at"] != (activation//3600+1)*3600
+                    or any(t["signal_at"] < portfolio["first_signal_at"] for t in portfolio["trades"])):
+                raise ValueError("INVALID_COMPARISON_ACTIVATION")
     return state
 
 
@@ -154,6 +165,7 @@ def restore(now):
     newest = available[0]
     validate_run(newest, WORKFLOW)
     state = validate_state(compressed_json(github(f"actions/artifacts/{newest['id']}/zip", True), "paper-state.json.gz"))
+    ensure_portfolios(state, now)
     event("paper_checkpoint_restored", artifact_id=newest["id"], next_hour=iso(state["next_hour"]))
     return state
 
@@ -395,16 +407,23 @@ def candidates_at(rows, hour, registry):
                            "published_at": row["publication_ts"], "game_start": stamp(row["game_start"]),
                            "forecast_end": stamp(row["forecast_end"]), "market_close": stamp(close),
                            "fee_coefficient": coefficient, "recorded_at": int(time.time())})
+        # Keep the completed-hour observation distinct from the entry receipt.
+        # Quantity constraints are explicit for the new comparison portfolios;
+        # original portfolio hashes/accounting remain unchanged.
+        quantity_step = (".01" if metadata.get("fractional_trading_enabled") is True else "1") if row["provider"] == "kalshi" else metadata.get("minimumTradeQty")
+        candidates[-1].update(signal_ask=observed[-1]["ask"], signal_quote_at=observed[-1]["at"],
+                              opposite_ask=None if point.get("bid") is None else str(1-amount(point["bid"])),
+                              quantity_step=quantity_step, minimum_quantity=quantity_step)
     return candidates, counts
 
 
 def update_settlements(state, now):
-    cache, marks, errors = {}, {}, Counter()
+    cache, mark_cache, marks, errors = {}, {}, {}, Counter()
     for portfolio in state["portfolios"].values():
         for trade in portfolio["trades"]:
             if trade.get("payout") is not None:
                 continue
-            key = trade["forecast_id"]
+            key = (trade["provider"], trade["symbol"], trade["side"])
             if key not in cache:
                 try:
                     metadata, payout = market(trade), None
@@ -423,7 +442,7 @@ def update_settlements(state, now):
                     if payout is None and now < trade["market_close"]:
                         samples = [p for p in prices(trade, now-120, now) if p.get("bid") is not None and p["at"] <= now]
                         if samples:
-                            marks[key] = {"at": samples[-1]["at"], "bid": samples[-1]["bid"]}
+                            mark_cache[key] = {"at": samples[-1]["at"], "bid": samples[-1]["bid"]}
                 except (RuntimeError, ValueError, KeyError) as error:
                     errors[type(error).__name__] += 1
                     cache[key] = None
@@ -432,24 +451,36 @@ def update_settlements(state, now):
                     raise ValueError("INVALID_PROVIDER_PAYOUT")
                 trade.update(payout=str(cache[key]), settlement_at=now,
                              settlement_time_basis="first_confirmed_paper_receipt")
+            elif key in mark_cache:
+                marks[trade["forecast_id"]] = mark_cache[key]
         portfolio["equity"] = sample_equity(portfolio["trades"], marks, now, portfolio["equity"])
     return dict(errors)
 
 
 def stats(state, directory):
     result = {"mode": "paper_only", "activation_at": iso(state["activation_at"]),
+              "as_of": iso(state.get("last_run_at", int(time.time()))),
               "next_hour": iso(state["next_hour"]), "coverage": state["coverage"],
               "firestore_writes": 0, "cloud_storage_writes": 0, "live_orders": 0,
               "portfolios": {}}
     for name, portfolio in state["portfolios"].items():
         value = {**performance(portfolio["trades"]), "equity": portfolio["equity"]}
+        if name in {r.name for r in HOURLY_RULES}:
+            value.update(label=portfolio["label"], activation_at=iso(portfolio["activation_at"]),
+                         first_signal_at=iso(portfolio["first_signal_at"]), coverage=portfolio["coverage"],
+                         execution="next_recorded_minute_ask_quote_proxy",
+                         by_provider={provider: performance([t for t in portfolio["trades"] if t["provider"] == provider])
+                                      for provider in ("kalshi", "polymarket_us")})
         result["portfolios"][name] = value
         event("game_p01_paper_stats", portfolio=name, **value)
         win_rate = f"{value['win_rate_pct']:.2f}%" if value['win_rate_pct'] is not None else "n/a"
         print(f"{name} | W/L={value['wins']}/{value['losses']} win={win_rate} "
               f"net=${value['net_pnl_usd']:.4f} realized DD=${value['max_realized_drawdown_usd']:.4f} "
               f"max streak W/L={value['max_win_streak']}/{value['max_loss_streak']} "
-              f"recorded funding=${value['historical_minimum_cash_usd']:.4f} open={value['open_positions']}", flush=True)
+              f"recorded funding=${value['historical_minimum_cash_usd']:.4f} open={value['open_positions']} "
+              f"avg entry cents={value['avg_entry_cents']} avg duration seconds={value['avg_duration_seconds']} "
+              f"bid DD={portfolio['equity'].get('max_sampled_bid_drawdown_usd')} "
+              f"unmarked={portfolio['equity'].get('unmarked_positions', 0)}", flush=True)
     (directory/"stats.json").write_text(json.dumps(result, indent=2)+"\n")
     ledger = [{"portfolio": name, **trade} for name, portfolio in state["portfolios"].items() for trade in portfolio["trades"]]
     fields = ["portfolio", "fixture_id", "provider", "symbol", "side", "event_title", "signal_at", "decision_at",
@@ -458,11 +489,27 @@ def stats(state, directory):
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(ledger)
+    comparison = {"mode": "paper_only", "as_of": result["as_of"], "live_orders": 0,
+                  "next_hour": result["next_hour"], "last_errors": state.get("last_errors", []),
+                  "source_coverage": state["coverage"],
+                  "portfolios": {r.name: result["portfolios"][r.name] for r in HOURLY_RULES}}
+    (directory/"comparison-stats.json").write_text(json.dumps(comparison, indent=2)+"\n")
+    (directory/"comparison-summary.md").write_text(comparison_markdown(comparison))
+    fields = ["portfolio", "fixture_id", "provider", "symbol", "event_title", "signal_side", "side",
+              "original_forecast_id", "artifact_id", "forecast_sha256", "published_at",
+              "signal_at", "signal_quote_at", "signal_ask", "p01", "final_p01", "hourly_discount",
+              "decision_at", "signal_entry_ask", "opposite_ask", "price", "quantity_step", "quantity",
+              "entry_cost", "entry_fee", "payout", "settlement_at", "accounting", "rules_hash"]
+    with (directory/"comparison-ledger.csv").open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(t for t in ledger if t["portfolio"] in comparison["portfolios"])
 
 
 def run(directory, now=None):
     now = int(time.time()) if now is None else now
     state = restore(now)
+    ensure_portfolios(state, now)
     save(state, directory)
     errors = []
     try:
@@ -478,6 +525,13 @@ def run(directory, now=None):
                 portfolio = state["portfolios"][rule.name]
                 chosen = select(candidates, [t["fixture_id"] for t in portfolio["trades"]], rule)
                 portfolio["trades"] += [fill(c, rule) for c in chosen]
+            for rule in HOURLY_RULES:
+                portfolio = state["portfolios"][rule.name]
+                chosen, skips = select_hourly(candidates, [t["fixture_id"] for t in portfolio["trades"]],
+                                              rule, portfolio["first_signal_at"])
+                portfolio["trades"] += [fill_hourly(c, rule) for c in chosen]
+                if hour >= portfolio["first_signal_at"]:
+                    portfolio["coverage"][str(hour)] = {"selected_entries": len(chosen), "skips": skips}
             state["coverage"][str(hour)] = {"candidate_outcomes": len(candidates), "skips": dict(counts), "artifact_ids": proof}
             state["next_hour"] += 3600
             save(state, directory)

@@ -1,4 +1,4 @@
-name: Games P01 — Automatic Paper Portfolio
+name: Games P01 — Hourly Within and Outside 10c Paper Portfolios
 on:
   schedule:
     - cron: '7,37 * * * *'
@@ -28,6 +28,12 @@ jobs:
           python-version: '3.12'
       - name: Replay recorded asks and reconcile official settlements (paper only)
         run: python -m market_research.game_p01_paper --output "$RUNNER_TEMP/games-paper"
+      - name: Show the within and outside 10c paper comparison
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/games-paper/comparison-summary.md" ]; then
+            cat "$RUNNER_TEMP/games-paper/comparison-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Preserve cumulative checkpoint even when public data is temporarily unavailable
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -44,5 +50,8 @@ jobs:
           path: |
             ${{ runner.temp }}/games-paper/stats.json
             ${{ runner.temp }}/games-paper/paper-ledger.csv
+            ${{ runner.temp }}/games-paper/comparison-stats.json
+            ${{ runner.temp }}/games-paper/comparison-ledger.csv
+            ${{ runner.temp }}/games-paper/comparison-summary.md
           if-no-files-found: warn
           retention-days: 90
