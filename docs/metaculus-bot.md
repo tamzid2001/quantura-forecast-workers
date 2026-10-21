@@ -78,7 +78,7 @@ promotional or duplicate comments. Comments explain
 the forecast; leaderboard scores depend on resolved forecasting performance.
 Actions artifacts contain operational summaries, not private reasoning.
 
-The bounded restart policy permits, at most **two new private-note attempts per job**
+The bounded restart policy permits, at most **five new private-note attempts per job** in the hosted profile (the local fallback is two)
 and **50 attempts per UTC day** in the hosted profile (the local fallback is 12) are permitted. The encrypted checkpoint reserves
 capacity before each network request, including ambiguous writes. These are
 Quantura's own limits, not a claim about Metaculus's permitted posting volume.
@@ -111,7 +111,7 @@ entries with zero listed prices. It checks the key's free daily quota before eac
 generation. It sends no paid search plugins, tool calls, or paid fallback models.
 If quota is exhausted or the service is unavailable, work is deferred. As configured
 on October 10, 2026, the account allows **50 free model requests/day**; the actual
-API quota is authoritative and may change. The default batch is two new LLM
+API quota is authoritative and may change. The default hosted batch is five new LLM
 questions and up to two numerical time-series questions per run. A UTC daily
 private-note limit is checked before new inference so exhausted posting capacity
 does not waste free model requests. Invalid answers
@@ -230,7 +230,7 @@ To connect your own OpenRouter key:
    participation and submission approvals are account-specific. Use the
    workflow’s `test` scope before a `competitions` submission after code changes.
 4. Enable `METACULUS_BOT_ENABLED=true` only on the runtime repository, then run
-   `metaculus-bot.yml` with `scope=competitions`, `submit=true`, `max_questions=2`.
+   `metaculus-bot.yml` with `scope=competitions`, `submit=true`, `max_questions=5`.
    The schedule checks for work every 15 minutes. Do not enable a second copy.
 
 OpenRouter’s current free limits are 20 requests/minute and 50/day for an account
@@ -267,11 +267,13 @@ explains that free pricing is temporary and limited to the MiniMax provider.
 
 ## Current deployment and scoring rules
 
-The hosted worker starts with `METACULUS_DRY_RUN=true` under the owner’s October 21
-readiness-review instruction. Both periodic workflows run, but `submit=true`
-inputs cannot bypass that switch. Change the variable to `false` only after the
-owner reviews the readiness report and explicitly authorizes live operation.
-Metaculus permission approval and this owner-controlled deployment gate are separate.
+The initial deployment used `METACULUS_DRY_RUN=true` for readiness review. The
+owner subsequently explicitly instructed immediate live submission on October 21,
+so the runtime is now **live** with `METACULUS_DRY_RUN=false`. The switch remains
+available as an immediate paper-only control; workflow inputs cannot bypass it.
+Metaculus permission approval and this owner-controlled gate remain separate.
+The first retrospective readiness scan returned no usable resolutions from the
+API; no Brier or peer score is claimed from that empty scan.
 
 The official FutureEval resources specify **one forecast per question** for
 MiniBench and the bot-only seasonal tournament. These are not repeatedly refreshed
@@ -317,3 +319,5 @@ only in cron-job.org’s protected headers, never in the URL or a public text fi
 Inspect the Actions pages and `status/metaculus.json` for actual status. GitHub
 scheduled runs can be delayed or dropped; native cron plus a backup watchdog is
 periodic automation, not a guaranteed continuously running service.
+
+Polling balances the remaining backlog across tournaments while prioritizing imminent deadlines. Forecast batches fetch only a bounded subset of queued posts (three times the batch size, capped at 100), avoiding a 100-post metadata wait before the first small submission batch.

@@ -37,7 +37,9 @@ jobs:
       - name: Evaluate five resolved MiniBench binary questions without API writes
         run: python -m metaculus_bot.readiness --count 5
       - name: Show limitations and results
-        run: cat artifacts/metaculus-readiness.md >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+        run: |
+          if [ -f artifacts/metaculus-readiness.md ]; then cat artifacts/metaculus-readiness.md >> "$GITHUB_STEP_SUMMARY"; fi
       - uses: actions/upload-artifact@v7
         if: always()
         with:

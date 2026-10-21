@@ -161,6 +161,9 @@ def run(args, api=None, llm_factory=free_llm_factory):
     if getattr(args, "submit", False) and os.environ.get("METACULUS_SUBMISSIONS_APPROVED") != "true":
         raise RuntimeError("METACULUS_SUBMISSIONS_NOT_APPROVED")
     checkpoint = Checkpoint(getattr(args, "checkpoint", None), os.environ.get("METACULUS_TOKEN"))
+    note_batch_limit = int(os.environ.get("METACULUS_PRIVATE_NOTE_BATCH_LIMIT", "2"))
+    if not 1 <= note_batch_limit <= 10:
+        raise RuntimeError("INVALID_PRIVATE_NOTE_BATCH_LIMIT")
     if checkpoint.state.get("operator_review_required"):
         raise RuntimeError("METACULUS_OPERATOR_REVIEW_REQUIRED")
     if getattr(args, "submit", False) and not checkpoint.path:
@@ -216,6 +219,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
     if getattr(args, "discover_only", False):
         queue = [q for q in questions if q.id_of_question not in own and not already_submitted(q)
                  and not (checkpoint.get(q.id_of_question) or {}).get("answer", {}).get("abstain")]
+        queue = question_order(queue, memberships, own, {q.id_of_question for q in queue if checkpoint.get(q.id_of_question)})
         coverage = [{"id": p["id"], "name": p["name"], **competition_policy(p),
                      "open_questions": sum(p["id"] in memberships[q.id_of_question] for q in questions),
                      "previously_submitted": sum(p["id"] in memberships[i] for i in own),
@@ -256,6 +260,9 @@ def run(args, api=None, llm_factory=free_llm_factory):
             continue
         if q.id_of_question in own or already_submitted(q):
             counts["already_submitted"] += 1
+            continue
+        if not isinstance(q.resolution_criteria, str) or not q.resolution_criteria.strip():
+            counts["resolution_criteria_unavailable_deferred"] += 1
             continue
         spec = specs[q.id_of_question]
         if args.engine == "llm" and spec:
@@ -311,7 +318,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
                 stage = "reasoning_write"
                 if record.get("note_write_state"):
                     raise RuntimeError("PRIVATE_NOTE_CONFIRMATION_PENDING")
-                if note_attempts >= 2:
+                if note_attempts >= note_batch_limit:
                     raise PrivateNoteLimit("PRIVATE_NOTE_BATCH_LIMIT")
                 text = record_text(record)
                 checkpoint.reserve_note_attempt()

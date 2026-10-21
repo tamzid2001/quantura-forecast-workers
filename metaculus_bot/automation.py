@@ -21,12 +21,14 @@ def github(path, body=None, method="PUT"):
     return json.loads(result.stdout) if result.stdout else {}
 
 
-def queue_ids(queue, bot_id, now=None):
+def queue_ids(queue, bot_id, now=None, maximum=12):
     now = now or datetime.now(timezone.utc)
     at = datetime.fromisoformat(queue["at"].replace("Z", "+00:00"))
     if str(queue.get("bot_id")) != str(bot_id) or not 0 <= (now - at).total_seconds() <= 1800:
         raise ValueError("STALE_OR_WRONG_BOT_QUEUE")
-    rows = queue.get("questions", [])[:100]
+    if type(maximum) is not int or not 1 <= maximum <= 100:
+        raise ValueError("INVALID_QUEUE_BATCH_LIMIT")
+    rows = queue.get("questions", [])[:maximum]
     if any(type(row.get(key)) is not int or row[key] <= 0 for row in rows for key in ("question_id", "post_id")):
         raise ValueError("INVALID_QUEUE_IDENTIFIERS")
     return [row["question_id"] for row in rows], sorted({row["post_id"] for row in rows})
@@ -49,7 +51,8 @@ def restore_queue(path):
             if len(members) != 1 or members[0].file_size > 2_000_000:
                 raise ValueError("INVALID_QUEUE_ARTIFACT")
             queue = json.loads(archive.read(members[0]))
-        ids, posts = queue_ids(queue, os.environ["METACULUS_BOT_ID"])
+        maximum = min(100, max(6, int(os.environ.get("BOT_MAX", "2")) * 3))
+        ids, posts = queue_ids(queue, os.environ["METACULUS_BOT_ID"], maximum=maximum)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(queue))
         return ids, posts
@@ -106,7 +109,7 @@ def watchdog(target):
         if needed:
             body = {"ref": "main"}
             if kind == "forecast":
-                body["inputs"] = {"scope": "competitions", "submit": "true", "max_questions": "2"}
+                body["inputs"] = {"scope": "competitions", "submit": "true", "max_questions": "5"}
             github(f"repos/{repo}/actions/workflows/{workflow}/dispatches", body, "POST")
         print(json.dumps({"event": "metaculus_watchdog", "target": kind, "dispatched": needed}))
 

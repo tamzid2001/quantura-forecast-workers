@@ -73,6 +73,7 @@ def run(count=5, output=Path("artifacts/metaculus-readiness.json")):
         rows.append(row)
     scored = [row for row in rows if "brier" in row]
     result = {"bot_id": identity["id"], "at": utcnow().isoformat(), "mode": "read_only_retrospective",
+              "status": "complete" if len(rows) == count else "insufficient_usable_resolutions",
               "requested_questions": count, "evaluated_questions": len(rows), "scored_questions": len(scored),
               "mean_brier": sum(row["brier"] for row in scored)/len(scored) if scored else None,
               "official_peer_score": None, "limitations": LIMITATION, "questions": rows, "live_submissions": 0}
@@ -86,6 +87,8 @@ def run(count=5, output=Path("artifacts/metaculus-readiness.json")):
         lines.append(f"| [{title}]({row['url']}) | {row.get('probability_yes', 'abstained')} | {row['outcome']} | {row.get('brier', '—')} | {row.get('community_brier', 'unavailable')} |")
     output.with_suffix(".md").write_text("\n".join(lines)+"\n")
     print(json.dumps({key:value for key,value in result.items() if key != "questions"}))
+    if len(rows) != count:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
