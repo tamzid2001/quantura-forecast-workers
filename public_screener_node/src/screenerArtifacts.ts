@@ -4,7 +4,7 @@ import {getCache} from "@vercel/functions";
 
 const Zip = require("adm-zip");
 const SCHEMA="quantura-public-screener-v1";
-const WORKFLOWS:Record<string,string>={stocks:"stock-screener.yml",games:"hourly-game-screener.yml",perps:"hourly-perpetual-screener.yml"};
+const WORKFLOWS:Record<string,string>={stocks:"stock-screener.yml","stocks-home":"homepage-stock-screener.yml",games:"hourly-game-screener.yml",perps:"hourly-perpetual-screener.yml"};
 const MAX_ZIP=24*1024*1024, MAX_JSON=96*1024*1024;
 export type PublicSnapshot={schema_version:string;feed:string;published_at:string;data:Record<string,any>};
 export type ArtifactSummary={id:number;name:string;created_at:string;digest?:string;size_in_bytes:number;expired:boolean;workflow_run:{id:number;head_branch:string;head_sha:string;head_repository_id:number;repository_id:number}};
@@ -30,7 +30,7 @@ export class ScreenerArtifactReader {
   private async json(path:string){const r=await this.request(this.root()+path,{headers:this.headers(),signal:AbortSignal.timeout(15_000),redirect:"error"});if(!r.ok)throw Error("screener_artifact_provider_unavailable");return r.json();}
   async list(feed:string,date?:string):Promise<ArtifactSummary[]> {
     this.checkFeed(feed);
-    if(date && (feed!=="stocks" || !/^\d{4}-\d{2}-\d{2}$/.test(date)))throw Error("screener_artifact_date_invalid");
+    if(date && (!["stocks","stocks-home"].includes(feed) || !/^\d{4}-\d{2}-\d{2}$/.test(date)))throw Error("screener_artifact_date_invalid");
     const name=`quantura-public-${feed}${date?`-${date}`:""}`;
     const key=`${this.owner}/${this.repo}/index/${name}`;
     let rows:any=await this.shared.get(key).catch(()=>null);
@@ -42,7 +42,7 @@ export class ScreenerArtifactReader {
     // Artifact IDs are allocated across partitions and are not chronological.
     return rows.sort((a:ArtifactSummary,b:ArtifactSummary)=>Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id);
   }
-  private checkFeed(feed:string){if(!/^(stocks|games-(kalshi|polymarket_us)-[01]|perps-[0-3])$/.test(feed))throw Error("screener_artifact_feed_invalid");}
+  private checkFeed(feed:string){if(!/^(stocks(?:-home)?|games-(kalshi|polymarket_us)-[01]|perps-[0-3])$/.test(feed))throw Error("screener_artifact_feed_invalid");}
   async read(feed:string,date?:string):Promise<PublicSnapshot>{
     this.checkFeed(feed);const key=`${feed}/${date || "latest"}`;
     const hit=this.cached.get(key);if(hit && hit.until>Date.now())return hit.value;
@@ -57,8 +57,9 @@ export class ScreenerArtifactReader {
       if(chunks.every(c=>typeof c==="string")){try{return validateSnapshot(JSON.parse(gunzipSync(Buffer.from(chunks.join(""),"base64"),{maxOutputLength:MAX_JSON}).toString()),feed);}catch{/* immutable cache can be refetched */}}
     }
     const run=await this.json(`/actions/runs/${a.workflow_run.id}`);
-    const expected=WORKFLOWS[feed.split("-")[0]];
-    if(![`.github/workflows/${expected}`,".github/workflows/screener-artifact-bootstrap.yml"].includes(run.path) || run.head_branch!=="main" || run.head_sha!==a.workflow_run.head_sha || !["schedule","workflow_dispatch"].includes(run.event) || run.repository?.id!==a.workflow_run.repository_id || run.head_repository?.id!==run.repository?.id)throw Error("screener_artifact_provenance_invalid");
+    const expected=WORKFLOWS[feed] || WORKFLOWS[feed.split("-")[0]];
+    const allowed=[`.github/workflows/${expected}`,...(feed==="stocks-home"?[]:[".github/workflows/screener-artifact-bootstrap.yml"])];
+    if(!allowed.includes(run.path) || run.head_branch!=="main" || run.head_sha!==a.workflow_run.head_sha || !["schedule","workflow_dispatch"].includes(run.event) || run.repository?.id!==a.workflow_run.repository_id || run.head_repository?.id!==run.repository?.id)throw Error("screener_artifact_provenance_invalid");
     const redirect=await this.request(`${this.root()}/actions/artifacts/${a.id}/zip`,{headers:this.headers(),redirect:"manual",signal:AbortSignal.timeout(15_000)});
     if(redirect.status!==302)throw Error("screener_artifact_download_unavailable");
     const url=new URL(redirect.headers.get("location") || "https://invalid.invalid");
@@ -93,7 +94,7 @@ export const screenerArtifacts={
     catch(error){
       // Only retained pre-migration stock dates may come from the old repo.
       // Never fall back on a failed integrity/provenance check or a current feed.
-      if(date && error instanceof Error && error.message==="screener_snapshot_not_found")return archiveArtifacts.read(feed,date);
+      if(feed==="stocks" && date && error instanceof Error && error.message==="screener_snapshot_not_found")return archiveArtifacts.read(feed,date);
       throw error;
     }
   },
