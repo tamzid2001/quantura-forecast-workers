@@ -1,0 +1,49 @@
+name: Quantura Metaculus read-only readiness check
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quantura-metaculus-readiness
+  cancel-in-progress: false
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+      METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+      METACULUS_LLM_PROVIDER: ${{ vars.METACULUS_LLM_PROVIDER || 'auto' }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: metaculus_bot/requirements.lock
+      - run: python -m pip install --require-hashes -r metaculus_bot/requirements.lock
+      - run: python -m pytest -q metaculus_bot/tests
+        env:
+          METACULUS_BOT_ID: ''
+          METACULUS_TOKEN: test-token
+          OPENROUTER_API_KEY: test
+          AI_GATEWAY_API_KEY: ''
+          METACULUS_LLM_PROVIDER: openrouter
+      - name: Evaluate five resolved MiniBench binary questions without API writes
+        run: python -m metaculus_bot.readiness --count 5
+      - name: Show limitations and results
+        run: cat artifacts/metaculus-readiness.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: metaculus-readiness-report
+          path: |
+            artifacts/metaculus-readiness.json
+            artifacts/metaculus-readiness.md
+          retention-days: 30
+          if-no-files-found: error

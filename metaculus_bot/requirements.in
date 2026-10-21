@@ -1,0 +1,9 @@
+# Pure question/CDF core is retained under sdk/; no unused LLM/search SDKs.
+numpy==2.5.3
+pydantic==2.14.0
+pendulum==3.2.0
+typeguard==4.6.0
+typing-extensions==4.16.0
+requests==2.34.2
+cryptography==50.0.1
+pytest==9.0.3

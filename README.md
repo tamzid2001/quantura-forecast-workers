@@ -14,3 +14,5 @@ Hourly metered-usage delivery calls the authenticated production billing endpoin
 Existing backend maintenance schedules also run here with a separate credential limited to their allowlisted server jobs. Credentials cannot authorize customer API calls or live exchange orders. Raw server responses are never published in logs.
 
 Runtime updates are exported using the private application's `scripts/export_forecast_runtime.py` allowlist. `runtime-manifest.json` records source commit and file checksums.
+
+The approved Quantura Metaculus bot polls eligible competitions every 15 minutes and forecasts on an offset 15-minute schedule. It starts in dry-run mode pending the owner’s readiness-report review. Verified time-series questions require all seven pinned production models and chronological weight optimization. Other questions use verified free OpenRouter models. Notes are private, duplicate forecasts are reconciled against Metaculus, and pending answers are encrypted in short-lived recovery artifacts. API credentials live only in Actions Secrets. See `docs/metaculus-bot.md` for setup and limits.
