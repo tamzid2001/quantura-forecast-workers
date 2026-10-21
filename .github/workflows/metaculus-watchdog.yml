@@ -1,0 +1,28 @@
+name: Quantura Metaculus watchdog
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        options: [both, poll, forecast]
+        default: both
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: quantura-metaculus-watchdog
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      METACULUS_BOT_ENABLED: ${{ vars.METACULUS_BOT_ENABLED }}
+      WATCH_TARGET: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Start only missing or stale workers; never duplicate an active run
+        run: python3 -m metaculus_bot.automation watchdog --target "$WATCH_TARGET"

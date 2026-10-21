@@ -1,0 +1,21 @@
+{
+  "package": "forecasting-tools",
+  "version": "0.3.4",
+  "license": "MIT",
+  "source": "https://github.com/Metaculus/forecasting-tools",
+  "source_sha256": {
+    "data_models/questions.py": "2887bdb3f554ba17aaa99e555a2b2ca21e9da1041b33aaa8421e1a899a3dc248",
+    "data_models/numeric_report.py": "f464ef406b0bceca1bd5d34f1befc3399ca07464e513b92e4c1d0bb8c0764ef3",
+    "data_models/binary_report.py": "68c10d752ff39950b117c89c79da50d0a28c0ec287cd7417b4cf8c3de3d81e3e",
+    "data_models/timestamped_predictions.py": "19ee47a65ccb627a71d594d8dd450fa4f7b13afd9d0b471abbcc84a56a87e5d6",
+    "util/misc.py": "1791352c5d8653217b4fc8a786ba32c21d68dd834615dc8f9529aa1f47f8c452",
+    "data_models/data_organizer.py": "db65573f534a5763efbd626492cf2f920e9bd2cc853ed2da9bc5150331edef08",
+    "helpers/metaculus_client.py": "ed32d25c33b3bf437991198b59913c5ea382747604601617ffc90dc38bfeceed"
+  },
+  "changes": [
+    "Retain question models, parser/group methods and CDF implementation unchanged",
+    "Use local imports",
+    "Remove unused Jsonable file-I/O base",
+    "Omit network clients, LLM/search integrations and reporting classes"
+  ]
+}

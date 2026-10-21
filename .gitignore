@@ -2,6 +2,8 @@ __pycache__/
 *.pyc
 .env*
 .venv/
+.ensemble-env/
+artifacts/
 private-forecast/
 node_modules/
 dist/

@@ -1,0 +1,44 @@
+name: Quantura Metaculus question poll
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: quantura-metaculus-question-poll
+  cancel-in-progress: false
+jobs:
+  poll:
+    if: github.event_name == 'workflow_dispatch' || vars.METACULUS_BOT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+      METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
+      METACULUS_CHECKPOINT_NAMESPACE: bot-${{ vars.METACULUS_BOT_ID }}
+      METACULUS_CHECKPOINT_WORKFLOW: metaculus-bot.yml
+      GH_TOKEN: ${{ github.token }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: metaculus_bot/requirements.lock
+      - run: python -m pip install --require-hashes -r metaculus_bot/requirements.lock
+      - name: Read the current worker checkpoint without replacing it
+        run: python -m metaculus_bot.checkpoint --restore artifacts/metaculus-checkpoint.enc
+      - name: Discover eligible open questions; make no predictions or submissions
+        run: python -m metaculus_bot.runner --scope competitions --discover-only --checkpoint artifacts/metaculus-checkpoint.enc --report artifacts/metaculus-queue.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: metaculus-open-queue
+          path: artifacts/metaculus-queue.json
+          retention-days: 2
+          if-no-files-found: warn
