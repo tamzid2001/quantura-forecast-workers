@@ -17,6 +17,13 @@ def test_fresh_queue_preserves_unique_post_ids():
     assert queue_ids(queue, 310211, NOW) == ([1, 2], [7])
 
 
+def test_small_forecast_batches_do_not_download_the_entire_backlog():
+    queue = {"bot_id": 310211, "at": NOW.isoformat(), "questions": [
+        {"question_id": i, "post_id": 1000+i} for i in range(1,101)]}
+    ids,posts = queue_ids(queue,310211,NOW,maximum=6)
+    assert ids == list(range(1,7)) and len(posts) == 6
+
+
 @pytest.mark.parametrize("bot,age", [(310227, 0), (310211, 1801), (310211, -1)])
 def test_wrong_bot_stale_and_future_queues_are_rejected(bot, age):
     queue = {"bot_id": bot, "at": (NOW-timedelta(seconds=age)).isoformat(), "questions": []}

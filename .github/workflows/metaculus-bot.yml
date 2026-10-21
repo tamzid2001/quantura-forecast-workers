@@ -17,7 +17,7 @@ on:
       max_questions:
         description: 'Maximum new LLM questions and time-series questions per run (1-20)'
         type: string
-        default: '2'
+        default: '5'
   pull_request:
     paths: ['metaculus_bot/**', '.github/workflows/metaculus-bot.yml']
 
@@ -66,12 +66,13 @@ jobs:
       METACULUS_SUBMISSIONS_APPROVED: ${{ vars.METACULUS_SUBMISSIONS_APPROVED || 'false' }}
       METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
       METACULUS_PRIVATE_NOTE_DAILY_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_DAILY_LIMIT || '50' }}
+      METACULUS_PRIVATE_NOTE_BATCH_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_BATCH_LIMIT || '5' }}
       METACULUS_CHECKPOINT_NAMESPACE: bot-${{ vars.METACULUS_BOT_ID }}
       METACULUS_CHECKPOINT_WORKFLOW: metaculus-bot.yml
       METACULUS_DRY_RUN: ${{ vars.METACULUS_DRY_RUN || 'true' }}
       BOT_SCOPE: ${{ inputs.scope || 'competitions' }}
       BOT_SUBMIT: ${{ vars.METACULUS_DRY_RUN == 'false' && (github.event_name == 'schedule' || inputs.submit) }}
-      BOT_MAX: ${{ inputs.max_questions || '2' }}
+      BOT_MAX: ${{ inputs.max_questions || '5' }}
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -138,6 +139,7 @@ jobs:
       METACULUS_SUBMISSIONS_APPROVED: ${{ vars.METACULUS_SUBMISSIONS_APPROVED || 'false' }}
       METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
       METACULUS_PRIVATE_NOTE_DAILY_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_DAILY_LIMIT || '50' }}
+      METACULUS_PRIVATE_NOTE_BATCH_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_BATCH_LIMIT || '5' }}
       METACULUS_CHECKPOINT_NAMESPACE: bot-${{ vars.METACULUS_BOT_ID }}
       METACULUS_CHECKPOINT_WORKFLOW: metaculus-bot.yml
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -152,7 +154,7 @@ jobs:
       METACULUS_DRY_RUN: ${{ vars.METACULUS_DRY_RUN || 'true' }}
       BOT_SCOPE: ${{ inputs.scope || 'competitions' }}
       BOT_SUBMIT: ${{ vars.METACULUS_DRY_RUN == 'false' && (github.event_name == 'schedule' || inputs.submit) }}
-      BOT_MAX: ${{ inputs.max_questions || '2' }}
+      BOT_MAX: '2'
       QUESTION_IDS: ${{ needs.discover.outputs.time_series_ids }}
       POST_IDS: ${{ needs.discover.outputs.time_series_post_ids }}
       PYTHONUNBUFFERED: '1'
