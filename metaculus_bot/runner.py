@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .api import ApiError, Metaculus, RateLimited, competition_policy, eligible_post, eligible_project, post_projects, utcnow
 from .checkpoint import Checkpoint, PrivateNoteLimit
-from .llm import FreeLLM, FreeQuota, free_llm_factory
+from .llm import FreeLLM, FreeQuota, InvalidModelOutput, free_llm_factory
 from .questions import already_submitted, context, payload, unpack
 from .research import evidence
 from .time_series import definition, forecast
@@ -352,6 +352,16 @@ def run(args, api=None, llm_factory=free_llm_factory):
                     for row in coverage:
                         if row["id"] in memberships[q.id_of_question]:
                             row["submitted_this_run"] += 1
+        except InvalidModelOutput as error:
+            record = {"question_id": q.id_of_question, "generated_at": utcnow().isoformat(),
+                      "question_sha256": question_hash(q),
+                      "answer": {"abstain": True, "reasoning": "The accepted model response was unusable.",
+                                 "generation_error": str(error)}, "unusable_response": error.response}
+            checkpoint.put(record)
+            checkpoint.audit(record, "unusable_generation_not_submitted")
+            status = "unusable_generation_not_submitted"
+            log("metaculus_question_error", question_id=q.id_of_question, stage=stage,
+                error_type=type(error).__name__, error_code=str(error), regenerated=False)
         except RateLimited as error:
             checkpoint.defer(error.retry_after)
             counts["api_rate_limit_deferred"] += 1

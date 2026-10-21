@@ -652,8 +652,39 @@ def test_gateway_uses_exact_model_and_minimax_only_with_no_paid_fallback(posts,m
     assert body["model"]=="minimax/minimax-m3.1-flash"
     assert body["providerOptions"]["gateway"]=={"only":["minimax"],"order":["minimax"],"models":[]}
     assert "provider" not in body and "tools" not in body
-    assert body["response_format"]["type"]=="json_schema"
+    assert body["response_format"]["type"]=="json_object" and body["stream"] is False
     assert answer["engine"]=="free_llm" and answer["cost_usd"]==0
+
+
+def test_empty_gateway_answer_is_not_replaced_with_private_reasoning(posts,monkeypatch):
+    from metaculus_bot import llm
+    monkeypatch.setattr(llm,"utcnow",lambda:datetime(2026,10,21,tzinfo=timezone.utc))
+    session=GatewaySession()
+    response={"usage":{"cost":0},"choices":[{"finish_reason":"stop", "message":
+        {"content":"","reasoning":"private internal reasoning is not a forecast answer"}}]}
+    session.post=lambda *a,**kw:SimpleNamespace(status_code=200,json=lambda:response)
+    with pytest.raises(llm.InvalidModelOutput,match="EMPTY_MODEL_ANSWER") as error:
+        llm.FreeGatewayLLM("test",session).forecast(one(posts,"binary"),[])
+    assert error.value.response is response
+
+
+def test_unusable_generation_is_encrypted_and_not_regenerated(posts,monkeypatch,tmp_path):
+    from metaculus_bot import runner,llm
+    sample=next(copy.deepcopy(p) for p in posts if p.get('question',{}).get('type')=='binary')
+    monkeypatch.setenv('METACULUS_TOKEN','test-token')
+    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    api=SimpleNamespace(identity=lambda:{'id':1,'username':'test'},posts=lambda p:[sample],
+        comments=lambda *a:[],own_forecasts=lambda ids:set(),post=lambda *a:pytest.fail('No unusable answer writes'))
+    class Llm:
+        def __init__(self,key):pass
+        def forecast(self,q,sources):raise llm.InvalidModelOutput('EMPTY_MODEL_ANSWER',{'private':'retained privately'})
+    path=tmp_path/'checkpoint.enc'
+    args=SimpleNamespace(scope='test',engine='llm',submit=False,max_questions=1,question_ids=[],checkpoint=str(path),report=str(tmp_path/'summary.json'))
+    assert run(args,api,Llm)['counts']=={'unusable_generation_not_submitted':1}
+    assert run(args,api,lambda key:pytest.fail('No regeneration'))['counts']=={'abstained':1}
+    record=Checkpoint(path,'test-token').get(unpack(sample)[0].id_of_question)
+    assert record['unusable_response']['private']=='retained privately'
+    assert b'retained privately' not in path.read_bytes()
 
 
 @pytest.mark.parametrize("changed", ["model", "endpoint", "expired"])

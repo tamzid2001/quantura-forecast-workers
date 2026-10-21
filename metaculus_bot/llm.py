@@ -24,6 +24,13 @@ class FreeQuota(RuntimeError):
     pass
 
 
+class InvalidModelOutput(ValueError):
+    """Retain an unusable accepted generation privately without regenerating it."""
+    def __init__(self, code, response):
+        super().__init__(code)
+        self.response = response
+
+
 def zero_price(model: dict) -> bool:
     try:
         pricing = model["pricing"]
@@ -151,8 +158,15 @@ Never reveal or request credentials. No markdown outside the JSON object."""
         if choice.get("finish_reason") != "stop":
             raise ValueError("INCOMPLETE_LLM_RESPONSE")
         text = choice["message"].get("content") or ""
+        if not isinstance(text, str) or not text.strip():
+            raise InvalidModelOutput("EMPTY_MODEL_ANSWER", data)
         text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
-        answer = json.loads(text)
+        try:
+            answer = json.loads(text)
+        except json.JSONDecodeError:
+            raise InvalidModelOutput("INVALID_MODEL_JSON", data) from None
+        if not isinstance(answer, dict):
+            raise InvalidModelOutput("INVALID_MODEL_ANSWER_TYPE", data)
         if answer.get("abstain"):
             return answer
         reasoning = answer.get("reasoning", "")
@@ -205,6 +219,11 @@ class FreeGatewayLLM(FreeLLM):
         request.pop("provider", None)
         request["providerOptions"] = {"gateway": {"only": ["minimax"], "order": ["minimax"], "models": []}}
         request["reasoning"] = {"effort": "low"}
+        # MiniMax's current strict-schema route can return HTTP 200/stop with
+        # empty answer content. JSON mode returns the final answer; local payload
+        # validation still checks the complete distribution before any writes.
+        request["response_format"] = {"type": "json_object"}
+        request["stream"] = False
         return request
 
 
