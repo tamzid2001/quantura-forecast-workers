@@ -1,5 +1,5 @@
 {
-  "source_commit": "5d1388306998a1f1cd196b571445f1c08bdb530e",
+  "source_commit": "b6216114657e72e750fb3b5dc220ebb2cc53aec5",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -19,7 +19,7 @@
     ".github/workflows/stock-screener.yml": "aad6286324aa082727dcc88844575144bbd25db07bf041479826acf1bbd9654b",
     ".gitignore": "f90e6c1c1c7f24d481b2ab879060fea41781842e5fdcbac52e81c800174051e6",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
-    "README.md": "57c167825bfdbc9c36ef011b007913ed297c38bd562e6e3efe8ffa8cbd8f0880",
+    "README.md": "02b2bf0cc7573f5b08077b4f1dbd46dde5b9f13fa177cf5d8dd4af571b59f8c2",
     "docs/metaculus-bot.md": "fe9fdab5b4eb5e6910a88d9328de7c78add19a7e751cfa2c4db696073b6b8937",
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
