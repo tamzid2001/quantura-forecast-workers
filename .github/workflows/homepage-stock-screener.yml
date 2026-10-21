@@ -1,0 +1,156 @@
+name: Quantura Homepage Mega-Cap Forecasts
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 * * * *" # Latest completed NYSE close; normally publishes once per session.
+permissions: {}
+concurrency:
+  group: quantura-homepage-stock-screener
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      should_run: ${{ steps.session.outputs.should_run }}
+      scan_date: ${{ steps.session.outputs.scan_date }}
+      universe_hash: ${{ steps.universe.outputs.hash }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check pandas requests lxml pandas-market-calendars==5.4.0
+      - name: Read homepage publication marker
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p home-work/published
+          if gh release view homepage-screener-latest --json assets > home-work/published/release.json 2> home-work/published/error.txt; then
+            gh release download homepage-screener-latest --pattern run-manifest.json --dir home-work/published --clobber
+          elif ! grep -q '^release not found$' home-work/published/error.txt; then
+            cat home-work/published/error.txt >&2
+            exit 1
+          fi
+      - id: session
+        run: python scripts/screener_schedule.py --publication-manifest home-work/published/run-manifest.json >> "$GITHUB_OUTPUT"
+      - name: Select six largest eligible mega-cap stocks
+        if: steps.session.outputs.should_run == 'true'
+        id: universe
+        env:
+          SCAN_DATE: ${{ steps.session.outputs.scan_date }}
+          SESSION_CLOSE: ${{ steps.session.outputs.session_close }}
+        run: |
+          python scripts/quant_screener_pipeline.py universe --output home-work/all.json --matrix-output home-work/matrix.json --chunk-count 6 --scan-date "$SCAN_DATE" --session-close "$SESSION_CLOSE" --skip-earnings
+          python -m scripts.homepage_screener select --input home-work/all.json --output home-work/universe.json
+          echo "hash=$(jq -r .universe_hash home-work/universe.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        if: steps.session.outputs.should_run == 'true'
+        with:
+          name: homepage-universe
+          path: home-work/universe.json
+          retention-days: 2
+          if-no-files-found: error
+  forecast:
+    needs: prepare
+    if: needs.prepare.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5]
+    env:
+      QUANTURA_SCREENER_DATA_URL: https://quantura.studio/api/internal/screener/market-data
+      QUANTURA_SCREENER_PUBLISH_TOKEN: ${{ secrets.QUANTURA_SCREENER_PUBLISH_TOKEN }}
+      ALPACA_DATA_FEED: sip
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      TIMESFM_HF_ACCESS_APPROVED: ${{ vars.TIMESFM_HF_ACCESS_APPROVED || 'false' }}
+      TIMESFM_COMMERCIAL_LICENSED: ${{ vars.TIMESFM_COMMERCIAL_LICENSED || 'false' }}
+      GRANITE_DEVICE: cpu
+      CUDA_VISIBLE_DEVICES: ''
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-screener-marketdata.lock
+      - uses: actions/download-artifact@v8
+        with:
+          name: homepage-universe
+          path: home-work
+      - uses: actions/cache/restore@v6
+        id: checkpoint
+        with:
+          path: home-work/chunks/chunk-${{ matrix.chunk }}.json
+          key: homepage-seven-${{ github.sha }}-${{ needs.prepare.outputs.scan_date }}-${{ needs.prepare.outputs.universe_hash }}-${{ matrix.chunk }}-${{ github.run_id }}
+          restore-keys: homepage-seven-${{ github.sha }}-${{ needs.prepare.outputs.scan_date }}-${{ needs.prepare.outputs.universe_hash }}-${{ matrix.chunk }}-
+      - name: Run the shared optimized seven-model stock forecast
+        run: |
+          test "$TIMESFM_HF_ACCESS_APPROVED" = true
+          test "$TIMESFM_COMMERCIAL_LICENSED" = true
+          python -m pip install --no-cache-dir --disable-pip-version-check -r requirements-ensemble-forecast.lock -r requirements-screener-marketdata.lock
+          python scripts/quant_screener_pipeline.py chunk --universe home-work/universe.json --chunk "${{ matrix.chunk }}" --chunk-count 6 --output "home-work/chunks/chunk-${{ matrix.chunk }}.json" --resume
+      - uses: actions/cache/save@v6
+        if: always() && hashFiles(format('home-work/chunks/chunk-{0}.json', matrix.chunk)) != ''
+        with:
+          path: home-work/chunks/chunk-${{ matrix.chunk }}.json
+          key: ${{ steps.checkpoint.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: homepage-chunk-${{ matrix.chunk }}
+          path: home-work/chunks/chunk-${{ matrix.chunk }}.json
+          retention-days: 2
+          if-no-files-found: error
+  publish:
+    needs: [prepare, forecast]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          name: homepage-universe
+          path: home-work
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: homepage-chunk-*
+          path: home-work/chunks
+          merge-multiple: true
+      - name: Validate every mega-cap before publication
+        run: |
+          python scripts/quant_screener_pipeline.py aggregate --universe home-work/universe.json --chunks-dir home-work/chunks --chunk-count 6 --coverage-threshold 1 --output-dir home-work/aggregate
+          python -m scripts.homepage_screener publish --input home-work/aggregate/quantura-screener-latest.json --output home-work/public/snapshot.json.gz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: quantura-public-stocks-home
+          path: home-work/public/snapshot.json.gz
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: quantura-public-stocks-home-${{ needs.prepare.outputs.scan_date }}
+          path: home-work/public/snapshot.json.gz
+          retention-days: 14
+          if-no-files-found: error
+      - name: Write completion marker after artifact delivery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view homepage-screener-latest > /dev/null 2>&1; then
+            gh release create homepage-screener-latest --title 'Homepage mega-cap forecasts' --notes 'Six mega-cap forecasts; independent of full-universe screener coverage.'
+          fi
+          gh release upload homepage-screener-latest home-work/aggregate/run-manifest.json --clobber
