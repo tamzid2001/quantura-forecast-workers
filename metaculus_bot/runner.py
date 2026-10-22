@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .api import ApiError, Metaculus, RateLimited, competition_policy, eligible_post, eligible_project, post_projects, utcnow
 from .checkpoint import Checkpoint, PrivateNoteLimit
-from .llm import FreeLLM, FreeQuota, InvalidModelOutput, free_llm_factory
+from .llm import FreeLLM, FreeQuota, InvalidModelOutput, NON_FORECAST_MODELS, free_llm_factory
 from .questions import already_submitted, context, payload, unpack
 from .research import evidence
 from .time_series import definition, forecast
@@ -189,6 +189,16 @@ def run(args, api=None, llm_factory=free_llm_factory):
     expected_bot = os.environ.get("METACULUS_BOT_ID")
     if expected_bot and str(identity["id"]) != expected_bot:
         raise RuntimeError("METACULUS_BOT_ID_MISMATCH")
+    # A moderation-only routing result contains no forecast to select or improve.
+    # Preserve it in the audit, then allow the corrected general-purpose route.
+    # Usable answers, genuine abstentions, and other malformed generations remain
+    # immutable. Authoritative own history still blocks duplicate submissions.
+    for pending in list(checkpoint.state["pending"].values()):
+        if ((pending.get("unusable_response") or {}).get("model") in NON_FORECAST_MODELS
+                and pending.get("answer", {}).get("generation_error") == "INVALID_MODEL_JSON"):
+            checkpoint.audit(pending, "moderation_route_not_a_forecast")
+            checkpoint.remove(pending["question_id"])
+            log("metaculus_non_forecasting_route_requeued", question_id=pending["question_id"])
     if args.submit and os.environ.get("METACULUS_PARTICIPATION_FORM_CONFIRMED") != "true":
         raise RuntimeError("PARTICIPATION_FORM_CONFIRMATION_REQUIRED")
     registry = json.loads(Path(__file__).with_name("series_registry.json").read_text())

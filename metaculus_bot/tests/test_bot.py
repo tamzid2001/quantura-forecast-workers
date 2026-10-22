@@ -120,9 +120,10 @@ def test_paid_models_and_fake_free_names_rejected():
     with pytest.raises(FreeQuota):select_model(catalog[1:])
 
 
-def test_free_pool_preferred_to_single_busy_provider():
+def test_general_purpose_model_preferred_to_unrestricted_free_pool():
     catalog=[{'id':m,'pricing':{'prompt':'0','completion':'0'}} for m in ['google/gemma-4-31b-it:free','openrouter/free']]
-    assert select_model(catalog)['id']=='openrouter/free'
+    assert select_model(catalog)['id']=='google/gemma-4-31b-it:free'
+    with pytest.raises(FreeQuota):select_model(catalog[1:])
 
 
 def test_structured_output_preserves_exact_options(posts):
@@ -141,7 +142,7 @@ class Response:
 class RouterSession:
     def __init__(self, remaining=0, status=200):self.headers={};self.posts=[];self.remaining=remaining;self.status=status
     def get(self,url,**kwargs):
-        if url.endswith('/models'):return Response({"data":[{"id":"openrouter/free","pricing":{"prompt":"0","completion":"0"}}]})
+        if url.endswith('/models'):return Response({"data":[{"id":"google/gemma-4-31b-it:free","pricing":{"prompt":"0","completion":"0"},"supported_parameters":["response_format"]}]})
         return Response({"data":{"free_model_daily_requests":{"remaining":self.remaining}}})
     def post(self,url,**kwargs):self.posts.append(kwargs);return Response({},self.status)
 
@@ -156,14 +157,14 @@ def test_429_defers_without_paid_fallback(posts):
     session=RouterSession(remaining=1,status=429);llm=FreeLLM('test',session)
     with pytest.raises(FreeQuota):llm.forecast(one(posts,'binary'),[])
     body=session.posts[0]['json']
-    assert body['model']=='openrouter/free' and not body['provider']['allow_fallbacks']
+    assert body['model']=='google/gemma-4-31b-it:free' and not body['provider']['allow_fallbacks']
     assert 'tools' not in body and 'plugins' not in body
 
 
-def test_free_router_uses_json_mode_without_strict_endpoint_constraint(posts):
+def test_general_free_model_uses_catalog_declared_json_mode(posts):
     session=RouterSession(remaining=1,status=429)
     llm=FreeLLM('test',session)
-    llm.model['supported_parameters']=['structured_outputs','response_format']
+    llm.model['supported_parameters']=['response_format']
     with pytest.raises(FreeQuota):llm.forecast(one(posts,'numeric'),[])
     body=session.posts[0]['json']
     assert body['response_format']=={'type':'json_object'}
@@ -712,6 +713,26 @@ def test_unusable_generation_is_encrypted_and_not_regenerated(posts,monkeypatch,
     record=Checkpoint(path,'test-token').get(unpack(sample)[0].id_of_question)
     assert record['unusable_response']['private']=='retained privately'
     assert b'retained privately' not in path.read_bytes()
+
+
+def test_moderation_routing_result_is_not_treated_as_a_forecast(posts,monkeypatch,tmp_path):
+    from metaculus_bot import runner
+    sample=next(copy.deepcopy(p) for p in posts if p.get('question',{}).get('type')=='binary')
+    q=unpack(sample)[0];path=tmp_path/'checkpoint.enc'
+    prior={'question_id':q.id_of_question,'answer':{'abstain':True,'generation_error':'INVALID_MODEL_JSON'},
+           'unusable_response':{'model':'nvidia/nemotron-3.5-content-safety:free','choices':[{'message':{'content':'safety label'}}]}}
+    Checkpoint(path,'test-token').put(prior)
+    monkeypatch.setenv('METACULUS_TOKEN','test-token');monkeypatch.setattr(runner,'evidence',lambda q:[])
+    api=SimpleNamespace(identity=lambda:{'id':1,'username':'test'},posts=lambda p:[sample],
+        comments=lambda *a:[],own_forecasts=lambda ids:set(),post=lambda *a:pytest.fail('Read-only test'))
+    calls=[]
+    class Llm:
+        def __init__(self,key):pass
+        def forecast(self,q,sources):calls.append(q.id_of_question);return {'probability_yes':.2,'reasoning':'A valid new general-purpose forecast'}
+    args=SimpleNamespace(scope='test',engine='llm',submit=False,max_questions=1,question_ids=[],checkpoint=str(path),report=str(tmp_path/'summary.json'))
+    assert run(args,api,Llm)['counts']=={'validated_not_submitted':1}
+    assert calls==[q.id_of_question]
+    assert Checkpoint(path,'test-token').get(q.id_of_question)['answer']['probability_yes']==.2
 
 
 @pytest.mark.parametrize("changed", ["model", "endpoint", "expired"])
