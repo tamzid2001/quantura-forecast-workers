@@ -67,7 +67,9 @@ def payload(question, answer: dict) -> dict:
             answer = {**answer, **prediction}
     elif kind == "binary" and isinstance(prediction, (float, int)) and not isinstance(prediction, bool):
         answer = {**answer, "probability_yes": prediction}
-    base = {"question": question.id_of_question, "source": "api", "probability_yes": None,
+    # Null leaves the forecast standing without a timed withdrawal. Question
+    # closure/resolution and platform moderation remain authoritative.
+    base = {"question": question.id_of_question, "source": "api", "end_time": None, "probability_yes": None,
             "probability_yes_per_category": None, "continuous_cdf": None}
     if kind == "binary":
         value = float(answer["probability_yes"])

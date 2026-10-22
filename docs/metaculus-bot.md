@@ -44,6 +44,21 @@ closed/future competitions, and accounts without forecast permission are exclude
 - Pause: set `METACULUS_BOT_ENABLED=false` or disable the workflow. Existing forecasts
   remain on Metaculus; pausing does not erase them.
 
+New submissions explicitly set `end_time: null`, leaving no scheduled automatic
+withdrawal. The worker never calls the withdrawal endpoint. Authenticated own-history
+receipts report forecasts without scheduled withdrawal, detected expirations and
+missing expiry metadata separately; this cannot prevent platform moderation,
+question closure or resolution. Existing predictions are not duplicated or
+changed merely to refresh them.
+
+To process a specific eligible tournament now, dispatch `metaculus-bot.yml` with
+`scope=competitions`, `submit=true`, `tournament=labor-hub`, and `max_questions=5`.
+The optional tournament slug/ID is checked against the authenticated bot's eligible
+projects. A missing or forbidden tournament fails rather than silently forecasting
+elsewhere. Targeted runs retain the same encrypted checkpoint, daily private-note
+budget, free-only inference and duplicate prevention. Blank tournament input keeps
+the usual shared queue across all eligible competitions.
+
 Each question receives one forecast. Subsequent runs skip authoritative own
 forecast history through `questions/bulk-forecast-read/`; feed metadata alone is
 not treated as a submission receipt. An encrypted recovery artifact preserves the
