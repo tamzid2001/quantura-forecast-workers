@@ -92,6 +92,13 @@ class FreeLLM:
         return quota
 
     def request_options(self, request):
+        if self.model["id"] == "openrouter/free":
+            # The router's catalog lists the union of pool capabilities. Strict
+            # schemas can have no available endpoint (404) or be rejected by a
+            # chosen endpoint (400). Require JSON, then validate its exact values
+            # locally; never substitute a new answer after accepted generation.
+            request["response_format"] = {"type": "json_object"}
+            request["provider"].pop("require_parameters", None)
         return request
 
     def forecast(self, question, sources: list[dict]) -> dict:

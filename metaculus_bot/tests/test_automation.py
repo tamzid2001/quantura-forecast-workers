@@ -43,11 +43,13 @@ def test_watchdog_never_duplicates_active_work(state):
     assert not dispatch_needed([{"event": "schedule", "status": state, "created_at": (NOW-timedelta(hours=1)).isoformat()}], NOW)
 
 
-def test_watchdog_dispatches_only_when_missing_or_twenty_minutes_stale():
+def test_watchdog_dispatches_on_quarter_hour_without_duplicate_active_runs():
     assert dispatch_needed([], NOW)
-    run = {"event": "workflow_dispatch", "status": "completed", "created_at": (NOW-timedelta(minutes=19)).isoformat()}
+    run = {"event": "workflow_dispatch", "status": "completed", "created_at": (NOW-timedelta(minutes=11)).isoformat()}
     assert not dispatch_needed([run], NOW)
-    run["created_at"] = (NOW-timedelta(minutes=20)).isoformat()
+    run["created_at"] = (NOW-timedelta(minutes=12)).isoformat()
+    assert dispatch_needed([run], NOW)
+    run["created_at"] = (NOW-timedelta(minutes=15)).isoformat()
     assert dispatch_needed([run], NOW)
     assert dispatch_needed([{**run, "event": "pull_request", "status": "in_progress"}], NOW)
 
