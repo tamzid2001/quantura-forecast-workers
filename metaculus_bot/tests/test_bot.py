@@ -160,6 +160,16 @@ def test_429_defers_without_paid_fallback(posts):
     assert 'tools' not in body and 'plugins' not in body
 
 
+def test_free_router_uses_json_mode_without_strict_endpoint_constraint(posts):
+    session=RouterSession(remaining=1,status=429)
+    llm=FreeLLM('test',session)
+    llm.model['supported_parameters']=['structured_outputs','response_format']
+    with pytest.raises(FreeQuota):llm.forecast(one(posts,'numeric'),[])
+    body=session.posts[0]['json']
+    assert body['response_format']=={'type':'json_object'}
+    assert body['provider']=={'allow_fallbacks':False}
+
+
 def test_no_community_predictions_in_prompt(posts):
     q=one(posts,'binary');q.api_json['question']['aggregations']={'probability_yes':0.9}
     assert 'aggregations' not in json.dumps(context(q))

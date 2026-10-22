@@ -93,7 +93,9 @@ def dispatch_needed(runs, now=None):
     if not runs:
         return True
     latest = max(datetime.fromisoformat(run["created_at"].replace("Z", "+00:00")) for run in runs)
-    return (now - latest).total_seconds() >= 1200
+    # A 20-minute threshold with a 15-minute external cron can skip every other
+    # tick. Twelve minutes tolerates schedule jitter while preserving cadence.
+    return (now - latest).total_seconds() >= 720
 
 
 def watchdog(target):

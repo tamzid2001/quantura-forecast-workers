@@ -51,6 +51,10 @@ exact generated answer before submission. The private reasoning note contains a
 brief explanation, model attribution, real source links and a compact answer hash;
 it contains no raw answer JSON, data hashes or duplicated recovery payload.
 Uncertain writes are checked against Metaculus; writes aren't blindly retried.
+The free-model router and MiniMax use JSON mode for endpoint compatibility. The
+SDK validates exact question options, numeric units, ordered quantiles and CDFs
+before posting; JSON mode does not bypass distribution validation. An accepted
+but unusable response is encrypted and not automatically regenerated.
 If a note exists without its exact recovery answer, the worker defers rather than
 generating a different prediction or posting another comment.
 Metaculus requests are spaced at least five seconds apart. Read retries honor
@@ -297,7 +301,7 @@ No API key, internal prompt, private answer or reasoning text is committed.
 ### cron-job.org backup watchdog
 
 Native GitHub cron runs both jobs already. The optional external watchdog starts
-only a missing/stale worker (20 minutes since its last start) and skips any queued
+only a missing/stale worker (12 minutes since its last start) and skips any queued
 or active run. It does not cancel a worker or bypass dry-run/approval controls.
 Use one cron-job.org job every 15 minutes with these settings:
 
