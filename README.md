@@ -16,3 +16,7 @@ Existing backend maintenance schedules also run here with a separate credential 
 Runtime updates are exported using the private application's `scripts/export_forecast_runtime.py` allowlist. `runtime-manifest.json` records source commit and file checksums.
 
 The approved Quantura Metaculus bot polls eligible competitions every 15 minutes and forecasts on an offset 15-minute schedule. Live operation was explicitly authorized by the owner on October 21, 2026; new installations default to dry-run until approved. Verified time-series questions require all seven pinned production models and chronological weight optimization. Other questions use verified free MiniMax through Vercel Gateway during its promotion, then verified free OpenRouter models. Notes are private, duplicate forecasts are reconciled against Metaculus, and pending answers are encrypted in short-lived recovery artifacts. API credentials live only in Actions Secrets. See `docs/metaculus-bot.md` for setup and limits.
+
+## Repository policies and transport assessment
+
+[Terms of use](docs/TERMS_OF_USE.md) · [Privacy](docs/PRIVACY.md) · [Rights and licensing](docs/RIGHTS.md) · [RDMA applicability](docs/RDMA_ASSESSMENT.md).
