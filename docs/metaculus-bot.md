@@ -215,8 +215,11 @@ OpenRouter is connected for this deployment. The `auto` provider also prefers
 Vercel AI Gateway’s exact `minimax/minimax-m3.1-flash` model while its MiniMax
 endpoint is verified free. The route checks both catalog and endpoint prices
 before every generation, permits only provider `minimax`, and configures no model
-fallbacks, tools or paid search. The announced promotion ends October 22, 2026;
-Quantura conservatively disables it at **00:00 UTC on October 22**. It then selects
+fallbacks, tools or paid search. The announced promotion ends October 22, 2026.
+The live catalogs still reported zero model and MiniMax-provider prices on
+October 22. Quantura requires both checks before every request and disables this
+route immediately when either price becomes nonzero, with an outer cutoff of
+**00:00 UTC on October 23**. The provider may end the offer earlier. It then selects
 a verified free OpenRouter model before generating a new answer. Uncertain or
 accepted generations are never rerun through another provider.
 
