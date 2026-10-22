@@ -58,6 +58,7 @@ class Metaculus:
         self.session.headers.update({"Authorization": f"Token {token}", "User-Agent": "Quantura-Metaculus/1.0"})
         self.interval, self.clock, self.sleep = interval, clock, sleep
         self.next_request = 0.0
+        self.latest_forecast_receipts = {}
 
     def wait(self):
         remaining = self.next_request - self.clock()
@@ -147,6 +148,17 @@ class Metaculus:
         for start in range(0, len(question_ids), 100):
             data = self.get("questions/bulk-forecast-read/", question_ids=question_ids[start:start + 100])
             found.update(row["question_id"] for row in data["results"] if row["forecasts"])
+            for row in data["results"]:
+                forecasts = row["forecasts"]
+                if forecasts:
+                    # A future option-grace continuation can coexist with the
+                    # current segment. Its final segment governs expiry.
+                    latest = max(forecasts, key=lambda f: f.get("start_time", 0))
+                    self.latest_forecast_receipts[row["question_id"]] = {
+                        "start_time": latest.get("start_time"),
+                        "expiry_verified": "end_time" in latest,
+                        "end_time": latest.get("end_time"),
+                    }
         return found
 
     def comments(self, post_id: int | None, author_id: int) -> list[dict]:

@@ -18,6 +18,10 @@ on:
         description: 'Maximum new LLM questions and time-series questions per run (1-20)'
         type: string
         default: '5'
+      tournament:
+        description: 'Optional eligible tournament slug or ID; blank uses the shared queue'
+        type: string
+        default: ''
   pull_request:
     paths: ['metaculus_bot/**', '.github/workflows/metaculus-bot.yml']
 
@@ -73,6 +77,7 @@ jobs:
       BOT_SCOPE: ${{ inputs.scope || 'competitions' }}
       BOT_SUBMIT: ${{ vars.METACULUS_DRY_RUN == 'false' && (github.event_name == 'schedule' || inputs.submit) }}
       BOT_MAX: ${{ inputs.max_questions || '5' }}
+      BOT_TOURNAMENT: ${{ inputs.tournament || '' }}
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -86,18 +91,22 @@ jobs:
       - name: Restore encrypted pending generations and API cooldown
         run: python -m metaculus_bot.checkpoint --restore artifacts/metaculus-checkpoint.enc
       - name: Load the fresh queue from the polling worker
-        if: env.BOT_SCOPE == 'competitions'
+        if: env.BOT_SCOPE == 'competitions' && env.BOT_TOURNAMENT == ''
         id: queue
         run: python -m metaculus_bot.automation queue --file artifacts/metaculus-queue.json
       - name: Discover questions and run free-only LLM forecasts
-        if: env.BOT_SCOPE == 'test' || steps.queue.outputs.ready == 'true'
+        if: env.BOT_SCOPE == 'test' || env.BOT_TOURNAMENT != '' || steps.queue.outputs.ready == 'true'
         id: worker
         env:
           QUEUED_IDS: ${{ steps.queue.outputs.question_ids }}
           QUEUED_POSTS: ${{ steps.queue.outputs.post_ids }}
         run: |
           args=(--scope "$BOT_SCOPE" --max-questions "$BOT_MAX" --checkpoint artifacts/metaculus-checkpoint.enc)
-          if [[ "$BOT_SCOPE" == 'competitions' ]]; then args+=(--question-ids "$QUEUED_IDS" --post-ids "$QUEUED_POSTS"); fi
+          if [[ -n "$BOT_TOURNAMENT" ]]; then
+            args+=(--tournament "$BOT_TOURNAMENT")
+          elif [[ "$BOT_SCOPE" == 'competitions' ]]; then
+            args+=(--question-ids "$QUEUED_IDS" --post-ids "$QUEUED_POSTS")
+          fi
           if [[ "$BOT_SUBMIT" == 'true' ]]; then args+=(--submit); fi
           python -m metaculus_bot.runner "${args[@]}"
       - name: Record public operational activity without forecast values

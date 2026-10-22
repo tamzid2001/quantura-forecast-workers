@@ -169,6 +169,24 @@ def submit(api, question, record):
             else "submission_unconfirmed")
 
 
+def select_projects(projects, tournament):
+    """Target a requested tournament without overriding eligibility checks."""
+    if not tournament:
+        return projects
+    selected = [p for p in projects if str(p["id"]) == tournament or p.get("slug") == tournament]
+    if not selected:
+        raise RuntimeError("TOURNAMENT_NOT_ELIGIBLE_OR_UNAVAILABLE")
+    return selected
+
+
+def forecast_lifetimes(api):
+    """Missing expiry metadata never counts as verified unlimited duration."""
+    rows = list(getattr(api, "latest_forecast_receipts", {}).values())
+    return {"without_scheduled_withdrawal": sum(r["expiry_verified"] and r["end_time"] is None for r in rows),
+            "scheduled_withdrawal_detected": sum(r["expiry_verified"] and r["end_time"] is not None for r in rows),
+            "expiry_unverified": sum(not r["expiry_verified"] for r in rows)}
+
+
 def run(args, api=None, llm_factory=free_llm_factory):
     if getattr(args, "submit", False) and os.environ.get("DRY_RUN") == "1":
         raise RuntimeError("DRY_RUN_BLOCKS_SUBMISSION")
@@ -203,6 +221,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
         raise RuntimeError("PARTICIPATION_FORM_CONFIRMATION_REQUIRED")
     registry = json.loads(Path(__file__).with_name("series_registry.json").read_text())
     post_ids = getattr(args, "post_ids", [])
+    tournament = getattr(args, "tournament", "")
     if post_ids:
         # The first job already selected these posts. Recheck their current
         # tournament eligibility and forecast permissions without scanning all
@@ -212,8 +231,12 @@ def run(args, api=None, llm_factory=free_llm_factory):
                  for p in post_projects(post) if (p.get("slug") == "bot-testing-area" if args.scope == "test" else eligible_project(p))]
         discovered_posts = [(project_id, post) for project_id, post, _ in pairs]
         projects = list({p["id"]: {**p, "name": p.get("name") or str(p["id"])} for _, _, p in pairs}.values())
+        projects = select_projects(projects, tournament)
+        allowed = {p["id"] for p in projects}
+        discovered_posts = [(project_id, post) for project_id, post in discovered_posts if project_id in allowed]
     else:
         projects = ([{"id": "bot-testing-area", "name": "Bot testing area"}] if args.scope == "test" else api.competitions())
+        projects = select_projects(projects, tournament)
         discovered_posts = [(project["id"], post) for project in projects for post in api.posts(project["id"])]
     log("metaculus_discovery", bot=identity["username"], bot_id=identity["id"], engine=args.engine,
         competitions=[{"id": p["id"], "name": p["name"], **competition_policy(p)} for p in projects], free_only=True)
@@ -252,6 +275,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
         result = {"bot": identity["username"], "bot_id": identity["id"], "at": utcnow().isoformat(),
                   "free_only": True, "discovered_open_questions": len(questions),
                   "counts": {"queued": len(queue), "already_submitted": len(own)}, "competitions": coverage,
+                  "forecast_lifetimes": forecast_lifetimes(api),
                   "questions": [{"question_id": q.id_of_question, "post_id": q.id_of_post,
                                  "close_time": q.close_time.isoformat() if q.close_time else None,
                                  "engine": "quantura_time_series" if specs[q.id_of_question] else "free_llm"}
@@ -426,7 +450,8 @@ def run(args, api=None, llm_factory=free_llm_factory):
         log("metaculus_question", **summary)
     result = {"bot": identity["username"], "bot_id": identity["id"], "at": utcnow().isoformat(), "free_only": True,
               "discovered_open_questions": len(questions), "counts": dict(counts), "questions": summaries,
-              "time_series_question_ids": time_series_ids, "competitions": coverage}
+              "time_series_question_ids": time_series_ids, "competitions": coverage,
+              "forecast_lifetimes": forecast_lifetimes(api)}
     time_series_post_ids = sorted({q.id_of_post for q in questions if q.id_of_question in time_series_ids[:args.max_questions]})
     result["time_series_post_ids"] = time_series_post_ids
     checkpoint.save()
@@ -463,12 +488,15 @@ def main():
     parser.add_argument("--max-questions", type=int, default=4)
     parser.add_argument("--question-ids", default="[]")
     parser.add_argument("--post-ids", default="[]")
+    parser.add_argument("--tournament", default="", help="Optional eligible tournament slug or ID")
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--ensemble-python", default=".ensemble-env/bin/python")
     parser.add_argument("--report", default="artifacts/metaculus-summary.json")
     args = parser.parse_args()
     args.question_ids = json.loads(args.question_ids)
     args.post_ids = json.loads(args.post_ids)
+    if args.tournament and not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", args.tournament):
+        parser.error("Invalid tournament slug or ID")
     if (not 1 <= args.max_questions <= 20 or any(not isinstance(ids, list) or len(ids) > 100 or
             any(type(i) is not int or i <= 0 for i in ids) for ids in [args.question_ids, args.post_ids])):
         parser.error("Invalid batch size or question IDs")

@@ -14,7 +14,7 @@ from metaculus_bot.checkpoint import Checkpoint, PrivateNoteLimit, artifact_pref
 from metaculus_bot.llm import FreeLLM, FreeQuota, answer_schema, select_model, zero_price
 from metaculus_bot.questions import context, payload, unpack
 from metaculus_bot.research import public_get, public_url
-from metaculus_bot.runner import MARKER, answer_hash, question_hash, question_order, record_text, run, saved_note, saved_record, submit
+from metaculus_bot.runner import MARKER, answer_hash, forecast_lifetimes, question_hash, question_order, record_text, run, saved_note, saved_record, select_projects, submit
 from metaculus_bot.time_series import definition, history
 
 
@@ -86,6 +86,46 @@ def test_binary_and_mc_validation(posts):
     with pytest.raises(ValueError):payload(mc, {"probabilities": {"fake option": 1}})
     probs = {o: 1 / len(mc.options) for o in mc.options}
     assert sum(payload(mc, {"probabilities": probs})["probability_yes_per_category"].values()) == pytest.approx(1)
+
+
+def test_new_forecast_has_no_scheduled_withdrawal(posts):
+    q = one(posts, "binary")
+    body = payload(q, {"probability_yes": .4, "end_time": "2027-01-01T00:00:00Z"})
+    assert "end_time" in body and body["end_time"] is None
+
+
+def test_target_tournament_never_falls_back_to_other_projects():
+    projects = [{"id": 123, "slug": "labor-hub"}, {"id": 456, "slug": "minibench"}]
+    assert select_projects(projects, "labor-hub") == [projects[0]]
+    assert select_projects(projects, "123") == [projects[0]]
+    assert select_projects(projects, "") == projects
+    with pytest.raises(RuntimeError, match="TOURNAMENT_NOT_ELIGIBLE_OR_UNAVAILABLE"):
+        select_projects(projects, "not-eligible")
+
+
+def test_receipts_distinguish_no_expiry_from_missing_metadata_and_grace_segments():
+    api = Metaculus("test")
+    api.get = lambda path, **params: {"results": [
+        {"question_id": 1, "forecasts": [{"start_time": 1, "end_time": 10}, {"start_time": 10, "end_time": None}]},
+        {"question_id": 2, "forecasts": [{"start_time": 1, "end_time": 100}]},
+        {"question_id": 3, "forecasts": [{"start_time": 1}]},
+    ]}
+    assert api.own_forecasts([1, 2, 3]) == {1, 2, 3}
+    assert forecast_lifetimes(api) == {"without_scheduled_withdrawal": 1,
+        "scheduled_withdrawal_detected": 1, "expiry_unverified": 1}
+
+
+def test_target_tournament_filters_discovery_before_fetching_posts(monkeypatch, tmp_path):
+    monkeypatch.setenv("METACULUS_PARTICIPATION_FORM_CONFIRMED", "true")
+    fetched = []
+    api = SimpleNamespace(identity=lambda: {"id": 1, "username": "test"},
+        competitions=lambda: [{"id": 1, "slug": "labor-hub", "name": "Labor"},
+                              {"id": 2, "slug": "other", "name": "Other"}],
+        posts=lambda project: fetched.append(project) or [], own_forecasts=lambda ids: set())
+    args = SimpleNamespace(scope="competitions", engine="llm", submit=False, discover_only=True,
+        tournament="labor-hub", max_questions=1, question_ids=[], report=str(tmp_path/"queue.json"))
+    result = run(args, api)
+    assert fetched == [1] and [p["id"] for p in result["competitions"]] == [1]
 
 
 @pytest.mark.parametrize("kind", ["numeric", "discrete", "date"])
