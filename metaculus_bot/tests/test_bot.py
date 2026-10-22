@@ -416,6 +416,23 @@ def test_pending_answers_and_short_bot_deadlines_precede_balanced_backlog():
     assert [q.id_of_question for q in ordered]==[2,1,3,4]
 
 
+def test_prize_priority_protects_minibench_and_futureeval_free_capacity():
+    from metaculus_bot.runner import competition_priorities
+    projects=[{'id':1,'name':'MiniBench','bot_leaderboard_status':'bots_only','prize_pool':'1000'},
+              {'id':2,'name':'Fall FutureEval','bot_leaderboard_status':'bots_only','prize_pool':'50000'},
+              {'id':3,'name':'Market Pulse','bot_leaderboard_status':'include','prize_pool':'7500'},
+              {'id':4,'name':'Metaculus Cup','bot_leaderboard_status':'exclude_and_show','prize_pool':'5000'}]
+    ranks=competition_priorities(projects)
+    assert ranks=={1:0,2:0,3:1,4:2}
+    now=datetime(2026,10,21,tzinfo=timezone.utc)
+    questions=[SimpleNamespace(id_of_question=i,close_time=now+timedelta(hours=i)) for i in range(1,6)]
+    memberships={1:{4},2:{3},3:{1},4:{2},5:{3,4}}
+    ordered=question_order(questions,memberships,set(),set(),now,priorities=ranks)
+    assert [q.id_of_question for q in ordered]==[3,4,2,5,1]
+    # Persisted exact generations still recover first, regardless of tournament.
+    assert question_order(questions,memberships,set(),{1},now,priorities=ranks)[0].id_of_question==1
+
+
 def test_new_forecasts_each_have_private_reasoning_and_tournament_receipts(posts,monkeypatch,tmp_path):
     original=next(copy.deepcopy(p) for p in posts if p.get('question',{}).get('type')=='binary')
     second=copy.deepcopy(original);second['id']+=1000;second['question']['id']+=1000

@@ -89,13 +89,27 @@ def record_text(record: dict) -> str:
             f"<!-- {NOTE_MARKER} {json.dumps(note, sort_keys=True, separators=(',', ':'))} -->")
 
 
-def question_order(questions, memberships, handled, replay, now=None):
+def competition_priorities(projects):
+    """Reserve free capacity for potential bot prizes before unscored practice."""
+    result = {}
+    for project in projects:
+        policy = competition_policy(project)
+        prize = policy["bot_prize_eligibility"] == "subject_to_tournament_rules"
+        name = (str(project.get("slug", "")) + " " + str(project.get("name", ""))).lower()
+        short_bot_round = "minibench" in name or "futureeval" in name
+        result[project["id"]] = 0 if prize and short_bot_round else 1 if prize else 2
+    return result
+
+
+def question_order(questions, memberships, handled, replay, now=None, priorities=None):
     """Recover exact answers first; protect short deadlines; balance the backlog.
 
     Selection depends on coverage and closing times, never forecast probabilities
     or scores. A question shared by multiple tournaments is processed once.
     """
     now = now or utcnow()
+    priorities = priorities or {}
+    priority = lambda q: min((priorities.get(p, 2) for p in memberships[q.id_of_question]), default=2)
     key = lambda q: (q.close_time or datetime.max.replace(tzinfo=timezone.utc), q.id_of_question)
     ordered = sorted(questions, key=key)
     first = [q for q in ordered if q.id_of_question in replay]
@@ -119,12 +133,12 @@ def question_order(questions, memberships, handled, replay, now=None):
                 del queues[member]
         if not queues:
             break
-        member = min(queues, key=lambda p: (coverage[p], key(queues[p][0]), str(p)))
+        member = min(queues, key=lambda p: (priorities.get(p, 2), coverage[p], key(queues[p][0]), str(p)))
         q = queues[member].popleft()
         selected.add(q.id_of_question)
         coverage.update(memberships[q.id_of_question])
         balanced.append(q)
-    return first + urgent + balanced + [q for q in ordered if q.id_of_question not in selected]
+    return first + sorted(urgent + balanced, key=priority) + [q for q in ordered if q.id_of_question not in selected]
 
 
 def submit(api, question, record):
@@ -219,7 +233,8 @@ def run(args, api=None, llm_factory=free_llm_factory):
     if getattr(args, "discover_only", False):
         queue = [q for q in questions if q.id_of_question not in own and not already_submitted(q)
                  and not (checkpoint.get(q.id_of_question) or {}).get("answer", {}).get("abstain")]
-        queue = question_order(queue, memberships, own, {q.id_of_question for q in queue if checkpoint.get(q.id_of_question)})
+        queue = question_order(queue, memberships, own, {q.id_of_question for q in queue if checkpoint.get(q.id_of_question)},
+                               priorities=competition_priorities(projects))
         coverage = [{"id": p["id"], "name": p["name"], **competition_policy(p),
                      "open_questions": sum(p["id"] in memberships[q.id_of_question] for q in questions),
                      "previously_submitted": sum(p["id"] in memberships[i] for i in own),
@@ -246,7 +261,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
     handled = own | {q.id_of_question for q in questions if already_submitted(q)} | {i for i, r in records.items() if r or checkpoint.get(i) or notes[i]}
     replay = {q.id_of_question for q in candidates if
               (record := records[q.id_of_question] or checkpoint.get(q.id_of_question)) and not record["answer"].get("abstain")}
-    questions = question_order(questions, memberships, handled, replay)
+    questions = question_order(questions, memberships, handled, replay, priorities=competition_priorities(projects))
     if args.engine == "llm":
         time_series_ids = [q.id_of_question for q in questions if specs[q.id_of_question] and q.id_of_question not in own]
     coverage = [{"id": p["id"], "name": p["name"], **competition_policy(p),
