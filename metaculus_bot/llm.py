@@ -17,7 +17,8 @@ GATEWAY_BASE = "https://ai-gateway.vercel.sh/v1"
 GATEWAY_MODEL = "minimax/minimax-m3.1-flash"
 # Stop conservatively at the start of the announced final date in UTC.
 GATEWAY_FREE_UNTIL = datetime(2026, 10, 22, tzinfo=timezone.utc)
-PREFERRED = ["openrouter/free", "google/gemma-4-31b-it:free", "nvidia/nemotron-3-ultra-550b-a55b:free"]
+PREFERRED = ["google/gemma-4-31b-it:free", "nvidia/nemotron-3-ultra-550b-a55b:free"]
+NON_FORECAST_MODELS = {"nvidia/nemotron-3.5-content-safety:free"}
 
 
 class FreeQuota(RuntimeError):
@@ -92,13 +93,6 @@ class FreeLLM:
         return quota
 
     def request_options(self, request):
-        if self.model["id"] == "openrouter/free":
-            # The router's catalog lists the union of pool capabilities. Strict
-            # schemas can have no available endpoint (404) or be rejected by a
-            # chosen endpoint (400). Require JSON, then validate its exact values
-            # locally; never substitute a new answer after accepted generation.
-            request["response_format"] = {"type": "json_object"}
-            request["provider"].pop("require_parameters", None)
         return request
 
     def forecast(self, question, sources: list[dict]) -> dict:

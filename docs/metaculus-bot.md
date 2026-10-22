@@ -51,10 +51,10 @@ exact generated answer before submission. The private reasoning note contains a
 brief explanation, model attribution, real source links and a compact answer hash;
 it contains no raw answer JSON, data hashes or duplicated recovery payload.
 Uncertain writes are checked against Metaculus; writes aren't blindly retried.
-The free-model router and MiniMax use JSON mode for endpoint compatibility. The
+Selected general-purpose free models and MiniMax use JSON mode when supported for endpoint compatibility. The
 SDK validates exact question options, numeric units, ordered quantiles and CDFs
 before posting; JSON mode does not bypass distribution validation. An accepted
-but unusable response is encrypted and not automatically regenerated.
+but unusable response is encrypted and not automatically regenerated. A confirmed moderation-only routing result contains no forecast; it is audited and requeued after the model-routing fix. This does not change a usable forecast or select among candidate probabilities.
 If a note exists without its exact recovery answer, the worker defers rather than
 generating a different prediction or posting another comment.
 Metaculus requests are spaced at least five seconds apart. Read retries honor
@@ -113,7 +113,7 @@ probability is disliked, and no tuning against previews of open tournament forec
 ## Free models and capacity
 
 The router checks the current OpenRouter catalog and permits only explicitly free
-entries with zero listed prices. It checks the key's free daily quota before each
+general-purpose entries with zero listed prices. It pins Gemma 4 31B IT (free), with Nemotron 3 Ultra (free) as the catalog-selection alternative. The unrestricted free pool is excluded because it can route to moderation-only classifiers. It checks the key's free daily quota before each
 generation. It sends no paid search plugins, tool calls, or paid fallback models.
 If quota is exhausted or the service is unavailable, work is deferred. As configured
 on October 10, 2026, the account allows **50 free model requests/day**; the actual
@@ -229,7 +229,7 @@ To connect your own OpenRouter key:
    gh secret set OPENROUTER_API_KEY --repo tamzid2001/quantura-forecast-workers
    ```
 
-   Paste the key at the CLI prompt. The bot chooses `openrouter/free` only after
+   Paste the key at the CLI prompt. The bot chooses a whitelisted general-purpose free model only after
    checking current catalog prices; verified zero-price alternatives are allowed.
    No paid fallback or paid search plugin is configured.
 3. Keep `METACULUS_BOT_ID=310211` for the authorized Quantura account. The
@@ -263,7 +263,7 @@ gh variable set METACULUS_LLM_PROVIDER --body auto --repo tamzid2001/quantura-fo
 
 `auto` prefers the verified promotional MiniMax route and keeps OpenRouter as the
 free option after expiry. `vercel` alone defers when the promotion expires or
-prices are not zero. `openrouter` uses only the verified free router. The dedicated
+prices are not zero. `openrouter` uses only the verified general-purpose free model whitelist. The dedicated
 Gateway key created for this deployment expires after seven days and has the
 CLI’s smallest total quota ($1); this is a ceiling, not a purchase or permission
 to make paid requests. Price/expiry guards still apply to every inference.
