@@ -1,5 +1,5 @@
 {
-  "source_commit": "a4278641c179835654733c176457d70b159b53ae",
+  "source_commit": "c478269a2892f1137987b621544ff8b212a24b2e",
   "files": {
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
@@ -20,7 +20,7 @@
     ".gitignore": "f90e6c1c1c7f24d481b2ab879060fea41781842e5fdcbac52e81c800174051e6",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
     "README.md": "02b2bf0cc7573f5b08077b4f1dbd46dde5b9f13fa177cf5d8dd4af571b59f8c2",
-    "docs/metaculus-bot.md": "01afab6dd2b79e57f76e80b2ae6686fd2b4f4aa57e46c664a98b9d860a15af4b",
+    "docs/metaculus-bot.md": "66c416b7526a409d1a227d6054a05823060ff0d97a6dab1c1e5c33865d84d851",
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
     "ensemble_forecasting/adapters/base.py": "03c44461cef246ecc358032cdd34e90106fe3f6c30a99e4401d98af564426bf1",
@@ -68,7 +68,7 @@
     "metaculus_bot/checkpoint.py": "77bac51fab2ccdada331f9befce423328694a24c6c6dedc0e97510e85d0bbd0e",
     "metaculus_bot/ensemble_contract_test.py": "6c53dd316c1ff40a156a79d7fc42919b654a580627c94f49ec5d14b8aeb1d5f3",
     "metaculus_bot/ensemble_job.py": "2372832327daf31a7ad19819c695c8ebe7e3a7b432bc50892fd6b938db2ee51a",
-    "metaculus_bot/llm.py": "6ef428f7f80568cd0669570b3bcea8ee007b3ee85ea556bd6deb3d899aeb117b",
+    "metaculus_bot/llm.py": "53dbafe58f517a36183b70c24d7a4380c6495b40491092356467ce2ab6f3dd8f",
     "metaculus_bot/questions.py": "464c216d30cdd1328703193650b1678b713ae3b531aa4544e55c441e4a59bcf8",
     "metaculus_bot/readiness.py": "62f5767dff322964036eec5a8fa8a52293329b314bc002254b1b9ec8a0e441c9",
     "metaculus_bot/requirements.in": "e335e977eee86bef532cb6991110fd47d02265e1726c941973202a8f81d1e37f",
@@ -88,7 +88,7 @@
     "metaculus_bot/series_registry.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
     "metaculus_bot/tests/questions.json": "1dc81a3ad021b5da0b422185b07ce3bb34ddaf9ace3f4c22f9d5735e8e0d59e0",
     "metaculus_bot/tests/test_automation.py": "7e1a37f169b2e2a4ca4a6b6c2ecfc64f463540ad48f1131121fe92172ee76b35",
-    "metaculus_bot/tests/test_bot.py": "d6afee0a484740c78394337ea626f215f05961ef525a424e11157a849be5d7ff",
+    "metaculus_bot/tests/test_bot.py": "61d2342e3df58796847a33f24002c88b9db0cd690b971c2759f55dd60e14cb13",
     "metaculus_bot/tests/test_ensemble.py": "c2f5ed7e1d4694f63d9133467e0e24f0dce0227c9ba66722c250b26848c7c922",
     "metaculus_bot/time_series.py": "75ebb8e452dfaffbded1fe96ba97e21c54b69853e2da65cc346d5a54ba2ab810",
     "public_screener_node/package-lock.json": "babd16cdd053625198d0029996d5bcc8347381b0807631e4cec56934a16c594d",

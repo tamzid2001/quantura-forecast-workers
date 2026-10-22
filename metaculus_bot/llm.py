@@ -15,8 +15,10 @@ from .questions import context
 BASE = "https://openrouter.ai/api/v1"
 GATEWAY_BASE = "https://ai-gateway.vercel.sh/v1"
 GATEWAY_MODEL = "minimax/minimax-m3.1-flash"
-# Stop conservatively at the start of the announced final date in UTC.
-GATEWAY_FREE_UNTIL = datetime(2026, 10, 22, tzinfo=timezone.utc)
+# The final advertised date is October 22. Live model AND MiniMax endpoint
+# prices must remain zero before each request; the date is only an outer bound,
+# never a promise that the provider stays free for the entire final day.
+GATEWAY_FREE_UNTIL = datetime(2026, 10, 23, tzinfo=timezone.utc)
 PREFERRED = ["google/gemma-4-31b-it:free", "nvidia/nemotron-3-ultra-550b-a55b:free"]
 NON_FORECAST_MODELS = {"nvidia/nemotron-3.5-content-safety:free"}
 

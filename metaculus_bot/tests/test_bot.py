@@ -684,6 +684,15 @@ def test_gateway_uses_exact_model_and_minimax_only_with_no_paid_fallback(posts,m
     assert answer["engine"]=="free_llm" and answer["cost_usd"]==0
 
 
+def test_final_promotion_day_requires_live_zero_prices(monkeypatch):
+    from metaculus_bot import llm
+    monkeypatch.setattr(llm,"utcnow",lambda:datetime(2026,10,22,0,30,tzinfo=timezone.utc))
+    session=GatewaySession();client=llm.FreeGatewayLLM('test',session)
+    assert client.model['id']==llm.GATEWAY_MODEL
+    session.endpoint['pricing']['completion']='0.000001'
+    with pytest.raises(FreeQuota):client.quota()
+
+
 def test_empty_gateway_answer_is_not_replaced_with_private_reasoning(posts,monkeypatch):
     from metaculus_bot import llm
     monkeypatch.setattr(llm,"utcnow",lambda:datetime(2026,10,21,tzinfo=timezone.utc))
