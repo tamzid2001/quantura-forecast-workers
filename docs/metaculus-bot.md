@@ -58,8 +58,10 @@ Metaculus requests are spaced at least five seconds apart. Read retries honor
 of crashing the worker, and a restored cooldown prevents requests before it expires.
 Own comments are read once per job, saved abstentions do not consume new-generation
 capacity, and the time-series job fetches only the posts selected during discovery.
-Pending exact answers are recovered first, then questions closing within two hours
-take priority. The remaining backlog is balanced across tournaments by processed
+Pending exact answers are recovered first. New questions in prize-bearing
+MiniBench and FutureEval rounds take priority, followed by other tournaments
+whose policies permit potential bot prizes, then non-prize practice. Within each
+tier, questions closing within two hours take priority. The remaining backlog is balanced across tournaments by processed
 question counts, with the earliest deadline first within each tournament. Questions
 shared by tournaments receive one forecast and count toward each tournament's
 coverage. Selection never depends on forecast probabilities or leaderboard scores.
