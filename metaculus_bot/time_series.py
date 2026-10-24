@@ -40,6 +40,15 @@ def definition(question, registry: list[dict]) -> dict | None:
 
 
 def history(spec: dict) -> tuple[list[dict], dict]:
+    if spec["kind"] == "fred":
+        from .fred import history as fred_history
+        rows, source = fred_history(spec)
+        if len(rows) < 40:
+            raise ValueError("GENUINE_HISTORY_TOO_SHORT")
+        max_age = int(spec.get("max_history_age_days", 120))
+        if utcnow() - date(rows[-1]["timestamp"]) > timedelta(days=max_age):
+            raise ValueError("STALE_RESOLUTION_SOURCE_HISTORY")
+        return rows, source
     if spec["kind"] == "silver_bulletin":
         # Datawrapper's versionless page points to the current publicly available
         # chart; do not hard-code an outdated chart version or access paid data.
@@ -91,8 +100,12 @@ def forecast(question, spec: dict, python_executable: str) -> dict:
     start = date(rows[-1]["timestamp"])
     frequency = spec.get("frequency", "1D")
     horizon = (target.date() - start.date()).days
-    if frequency == "1M":
-        horizon = (target.year - start.year) * 12 + target.month - start.month
+    if frequency in {"1M", "1MS", "1QS-JAN", "1YS-JAN"}:
+        months = (target.year - start.year) * 12 + target.month - start.month
+        width = {"1QS-JAN": 3, "1YS-JAN": 12}.get(frequency, 1)
+        if spec["kind"] == "fred" and (target.day != 1 or months % width):
+            raise ValueError("EXACT_RESOLUTION_PERIOD_ALIGNMENT_REQUIRED")
+        horizon = months // width
     if not 1 <= horizon <= 1024:
         raise ValueError("SUPPORTED_TARGET_HORIZON_REQUIRED")
     job = {"rows": rows, "horizon": horizon, "frequency": frequency, "calendar": spec.get("calendar", "NONE"),

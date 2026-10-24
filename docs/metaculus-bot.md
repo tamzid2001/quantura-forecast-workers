@@ -345,3 +345,7 @@ scheduled runs can be delayed or dropped; native cron plus a backup watchdog is
 periodic automation, not a guaranteed continuously running service.
 
 Polling balances the remaining backlog across tournaments while prioritizing imminent deadlines. Forecast batches fetch only a bounded subset of queued posts (three times the batch size, capped at 100), avoiding a 100-post metadata wait before the first small submission batch.
+
+## FRED economic evidence
+
+`FRED_API_KEY` is an Actions secret, never a workflow input or source file. Discovery/research includes bounded FRED context for economic questions; native units and seasonal adjustment remain explicit. Only exact reviewed question/criteria mappings use FRED history for seven-model inference. See [FRED integration](fred.mdx). Installing this adapter does not enable submissions, alter comment controls or restart disabled schedules.

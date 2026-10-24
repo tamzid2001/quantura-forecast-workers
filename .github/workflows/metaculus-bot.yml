@@ -62,6 +62,7 @@ jobs:
       contents: write
       actions: read
     env:
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
@@ -143,6 +144,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     env:
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
       METACULUS_PARTICIPATION_FORM_CONFIRMED: ${{ vars.METACULUS_PARTICIPATION_FORM_CONFIRMED }}
       METACULUS_SUBMISSIONS_APPROVED: ${{ vars.METACULUS_SUBMISSIONS_APPROVED || 'false' }}

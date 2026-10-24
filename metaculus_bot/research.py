@@ -84,4 +84,8 @@ def evidence(question) -> list[dict]:
                             "excerpt": excerpt})
         except (requests.RequestException, ValueError, OSError):
             continue
+    from .fred import evidence as fred_evidence
+    for result in fred_evidence(question):
+        result["id"] = f"S{len(results) + 1}"
+        results.append(result)
     return results

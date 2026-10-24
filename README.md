@@ -20,3 +20,5 @@ The approved Quantura Metaculus bot polls eligible competitions every 15 minutes
 ## Repository policies and transport assessment
 
 [Terms of use](docs/TERMS_OF_USE.md) · [Privacy](docs/PRIVACY.md) · [Rights and licensing](docs/RIGHTS.md) · [RDMA applicability](docs/RDMA_ASSESSMENT.md).
+
+FRED economic evidence is available to the existing Metaculus worker via the server-only `FRED_API_KEY` Actions secret. It provides reviewed native-unit history and bounded research context, without changing submission or comment controls.
