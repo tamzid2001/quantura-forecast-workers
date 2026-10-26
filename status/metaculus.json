@@ -1,10 +1,10 @@
 {
-  "at": "2026-10-26T04:09:10.880166+00:00",
+  "at": "2026-10-26T04:26:08.163057+00:00",
   "bot_id": "310211",
   "dry_run": false,
-  "run_id": "40267233723",
+  "run_id": "40268700039",
   "counts": {
-    "deferred_error": 1,
+    "unusable_generation_not_submitted": 1,
     "submitted": 5,
     "batch_deferred": 9
   },
