@@ -48,7 +48,31 @@ jobs:
           cache: pip
           cache-dependency-path: metaculus_bot/requirements.lock
       - run: python -m pip install --require-hashes -r metaculus_bot/requirements.lock
-      - run: python -m pytest -q metaculus_bot/tests
+      - name: Run bot tests and measure new probability/research modules
+        run: python -m pytest -q metaculus_bot/tests --cov --cov-config=metaculus_bot/coverage.ini --cov-report=term-missing --cov-report=xml:artifacts/metaculus-coverage.xml
+      - name: Validate executed coverage and scoped quality gates
+        run: |
+          python - <<'PYCODE'
+          import pathlib, xml.etree.ElementTree as ET
+          root = ET.parse('artifacts/metaculus-coverage.xml').getroot()
+          classes = root.findall('.//class')
+          expected = {'probability.py', 'evaluation.py', 'tabular.py'}
+          assert root.tag == 'coverage' and len(classes) == len(expected)
+          assert {pathlib.Path(c.attrib['filename']).name for c in classes} == expected
+          for item in classes:
+              lines = item.findall('./lines/line')
+              assert lines and sum(int(line.attrib['hits']) > 0 for line in lines) / len(lines) >= .9
+          assert int(root.attrib['branches-valid']) > 0 and float(root.attrib['branch-rate']) >= .7
+          print(f"Scoped line coverage: {float(root.attrib['line-rate']):.2%}; branch coverage: {float(root.attrib['branch-rate']):.2%}")
+          PYCODE
+      - name: Persist real Cobertura coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: metaculus-probability-research-coverage-${{ github.run_id }}
+          path: artifacts/metaculus-coverage.xml
+          if-no-files-found: error
+          retention-days: 30
 
   discover:
     needs: validate

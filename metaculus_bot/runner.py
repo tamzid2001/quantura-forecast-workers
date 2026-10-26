@@ -364,6 +364,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
                     log("metaculus_generation", question_id=q.id_of_question, engine="free_llm",
                         model=answer.get("model"), cost_usd=answer.get("cost_usd"), abstained=bool(answer.get("abstain")))
                 record = {"question_id": q.id_of_question, "generated_at": utcnow().isoformat(), "answer": answer,
+                          "question_type": q.question_type, "close_time": q.close_time.isoformat() if q.close_time else None,
                           "question_sha256": question_hash(q)}
                 checkpoint.put(record)
             if record["answer"].get("abstain"):
@@ -372,7 +373,15 @@ def run(args, api=None, llm_factory=free_llm_factory):
                 # call is needed for an abstention.
             else:
                 stage = "distribution_validation"
-                payload(q, record["answer"])
+                try:
+                    payload(q, record["answer"])
+                except (ValueError, KeyError, TypeError) as error:
+                    # Keep the exact accepted output for audit, but stop
+                    # retrying an impossible submission on every cron tick.
+                    # This never requests a replacement model answer.
+                    raise InvalidModelOutput("INVALID_FORECAST_DISTRIBUTION", {
+                        "answer": record["answer"], "generated_at": record.get("generated_at"),
+                        "validation_error_type": type(error).__name__}) from None
                 if note and note.get("answer_sha256") != answer_hash(record):
                     raise RuntimeError("PRIVATE_NOTE_RECOVERY_MISMATCH")
             if args.submit and not record["answer"].get("abstain") and not persisted and not note:
