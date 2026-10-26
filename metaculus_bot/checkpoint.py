@@ -29,6 +29,9 @@ class Checkpoint:
         self.note_daily_limit = int(os.environ.get("METACULUS_PRIVATE_NOTE_DAILY_LIMIT", "12"))
         if not 1 <= self.note_daily_limit <= 100:
             raise RuntimeError("INVALID_PRIVATE_NOTE_DAILY_LIMIT")
+        self.minibench_reserve = int(os.environ.get("METACULUS_MINIBENCH_NOTE_RESERVE", "0"))
+        if not 0 <= self.minibench_reserve <= self.note_daily_limit:
+            raise RuntimeError("INVALID_MINIBENCH_NOTE_RESERVE")
         self.cipher = None
         if self.path:
             key = hashlib.sha256(b"quantura-metaculus-checkpoint-v1:" + token.encode()).digest()
@@ -77,20 +80,27 @@ class Checkpoint:
     def remaining(self):
         return max(0, self.state["not_before"] - time.time())
 
-    def note_attempts_remaining(self, now=None):
+    def note_attempts_remaining(self, now=None, *, priority=False):
         day = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).date().isoformat()
         budget = self.state.get("private_notes", {})
-        return max(0, self.note_daily_limit - (budget.get("attempts", 0) if budget.get("day") == day else 0))
+        current = budget if budget.get("day") == day else {}
+        available = self.note_daily_limit - current.get("attempts", 0)
+        # Other tournaments cannot exhaust the slots reserved for a complete
+        # MiniBench burst. Priority usage releases its own reserved slots only.
+        held = max(0, self.minibench_reserve - current.get("priority_attempts", 0))
+        return max(0, available - (0 if priority else held))
 
-    def reserve_note_attempt(self, now=None):
+    def reserve_note_attempt(self, now=None, *, priority=False):
         day = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).date().isoformat()
         budget = self.state.get("private_notes", {})
         count = budget.get("attempts", 0) if budget.get("day") == day else 0
-        if count >= self.note_daily_limit:
+        if self.note_attempts_remaining(now, priority=priority) == 0:
             raise PrivateNoteLimit("PRIVATE_NOTE_DAILY_LIMIT")
         # Reserve before the network call. An ambiguous response still consumes
         # capacity; retries cannot cause a burst after a worker restart.
-        self.state["private_notes"] = {"day": day, "attempts": count + 1}
+        prior_priority = budget.get("priority_attempts", 0) if budget.get("day") == day else 0
+        self.state["private_notes"] = {"day": day, "attempts": count + 1,
+                                      "priority_attempts": prior_priority + int(priority)}
         self.save()
 
 

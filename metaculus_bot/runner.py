@@ -90,6 +90,12 @@ def record_text(record: dict) -> str:
             f"<!-- {NOTE_MARKER} {json.dumps(note, sort_keys=True, separators=(',', ':'))} -->")
 
 
+def is_minibench(project):
+    slug = str(project.get("slug", "")).lower()
+    name = str(project.get("name", "")).lower()
+    return slug == "minibench" or slug.startswith("minibench-") or name == "minibench" or name.startswith("minibench - ")
+
+
 def competition_priorities(projects):
     """Reserve free capacity for potential bot prizes before unscored practice."""
     result = {}
@@ -97,8 +103,8 @@ def competition_priorities(projects):
         policy = competition_policy(project)
         prize = policy["bot_prize_eligibility"] == "subject_to_tournament_rules"
         name = (str(project.get("slug", "")) + " " + str(project.get("name", ""))).lower()
-        short_bot_round = "minibench" in name or "futureeval" in name
-        result[project["id"]] = 0 if prize and short_bot_round else 1 if prize else 2
+        result[project["id"]] = (0 if prize and is_minibench(project) else
+                                 1 if prize and "futureeval" in name else 2 if prize else 3)
     return result
 
 
@@ -245,6 +251,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
         discovered_posts = [(project["id"], post) for project in projects for post in api.posts(project["id"])]
     log("metaculus_discovery", bot=identity["username"], bot_id=identity["id"], engine=args.engine,
         competitions=[{"id": p["id"], "name": p["name"], **competition_policy(p)} for p in projects], free_only=True)
+    minibench_ids = {p["id"] for p in projects if is_minibench(p)}
     questions, seen, memberships = [], set(), defaultdict(set)
     counts = Counter()
     for project_id, post in discovered_posts:
@@ -346,7 +353,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
         stage = "comments_read"
         try:
             if not record:
-                if args.submit and checkpoint.note_attempts_remaining() == 0:
+                if args.submit and checkpoint.note_attempts_remaining(priority=bool(memberships[q.id_of_question] & minibench_ids)) == 0:
                     raise PrivateNoteLimit("PRIVATE_NOTE_DAILY_LIMIT")
                 attempted += 1
                 if args.engine == "time-series":
@@ -391,7 +398,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
                 if note_attempts >= note_batch_limit:
                     raise PrivateNoteLimit("PRIVATE_NOTE_BATCH_LIMIT")
                 text = record_text(record)
-                checkpoint.reserve_note_attempt()
+                checkpoint.reserve_note_attempt(priority=bool(memberships[q.id_of_question] & minibench_ids))
                 note_attempts += 1
                 record["note_write_state"] = "uncertain"
                 checkpoint.put(record)

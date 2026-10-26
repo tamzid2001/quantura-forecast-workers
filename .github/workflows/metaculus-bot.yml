@@ -17,7 +17,7 @@ on:
       max_questions:
         description: 'Maximum new LLM questions and time-series questions per run (1-20)'
         type: string
-        default: '5'
+        default: '10'
       tournament:
         description: 'Optional eligible tournament slug or ID; blank uses the shared queue'
         type: string
@@ -97,14 +97,15 @@ jobs:
       METACULUS_PARTICIPATION_FORM_CONFIRMED: ${{ vars.METACULUS_PARTICIPATION_FORM_CONFIRMED }}
       METACULUS_SUBMISSIONS_APPROVED: ${{ vars.METACULUS_SUBMISSIONS_APPROVED || 'false' }}
       METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
-      METACULUS_PRIVATE_NOTE_DAILY_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_DAILY_LIMIT || '50' }}
-      METACULUS_PRIVATE_NOTE_BATCH_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_BATCH_LIMIT || '5' }}
+      METACULUS_PRIVATE_NOTE_DAILY_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_DAILY_LIMIT || '100' }}
+      METACULUS_MINIBENCH_NOTE_RESERVE: ${{ vars.METACULUS_MINIBENCH_NOTE_RESERVE || '60' }}
+      METACULUS_PRIVATE_NOTE_BATCH_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_BATCH_LIMIT || '10' }}
       METACULUS_CHECKPOINT_NAMESPACE: bot-${{ vars.METACULUS_BOT_ID }}
       METACULUS_CHECKPOINT_WORKFLOW: metaculus-bot.yml
       METACULUS_DRY_RUN: ${{ vars.METACULUS_DRY_RUN || 'true' }}
       BOT_SCOPE: ${{ inputs.scope || 'competitions' }}
       BOT_SUBMIT: ${{ vars.METACULUS_DRY_RUN == 'false' && (github.event_name == 'schedule' || inputs.submit) }}
-      BOT_MAX: ${{ inputs.max_questions || '5' }}
+      BOT_MAX: ${{ inputs.max_questions || '10' }}
       BOT_TOURNAMENT: ${{ inputs.tournament || '' }}
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
@@ -176,8 +177,9 @@ jobs:
       METACULUS_PARTICIPATION_FORM_CONFIRMED: ${{ vars.METACULUS_PARTICIPATION_FORM_CONFIRMED }}
       METACULUS_SUBMISSIONS_APPROVED: ${{ vars.METACULUS_SUBMISSIONS_APPROVED || 'false' }}
       METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
-      METACULUS_PRIVATE_NOTE_DAILY_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_DAILY_LIMIT || '50' }}
-      METACULUS_PRIVATE_NOTE_BATCH_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_BATCH_LIMIT || '5' }}
+      METACULUS_PRIVATE_NOTE_DAILY_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_DAILY_LIMIT || '100' }}
+      METACULUS_MINIBENCH_NOTE_RESERVE: ${{ vars.METACULUS_MINIBENCH_NOTE_RESERVE || '60' }}
+      METACULUS_PRIVATE_NOTE_BATCH_LIMIT: ${{ vars.METACULUS_PRIVATE_NOTE_BATCH_LIMIT || '10' }}
       METACULUS_CHECKPOINT_NAMESPACE: bot-${{ vars.METACULUS_BOT_ID }}
       METACULUS_CHECKPOINT_WORKFLOW: metaculus-bot.yml
       HF_TOKEN: ${{ secrets.HF_TOKEN }}

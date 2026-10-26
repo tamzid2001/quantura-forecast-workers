@@ -90,3 +90,70 @@ def test_operator_review_block_survives_restart(monkeypatch, tmp_path):
     args = SimpleNamespace(submit=False, checkpoint=str(path))
     with pytest.raises(RuntimeError, match="METACULUS_OPERATOR_REVIEW_REQUIRED"):
         run(args, SimpleNamespace(identity=lambda: pytest.fail("A blocked worker must not retry API writes")))
+
+
+def test_minibench_reservation_preserves_sixty_slots_through_restart(tmp_path, monkeypatch):
+    from metaculus_bot.checkpoint import PrivateNoteLimit
+    monkeypatch.setenv("METACULUS_PRIVATE_NOTE_DAILY_LIMIT", "100")
+    monkeypatch.setenv("METACULUS_MINIBENCH_NOTE_RESERVE", "60")
+    path = tmp_path / "state.enc"
+    state = Checkpoint(path, "test-token")
+    for _ in range(40):
+        state.reserve_note_attempt(NOW)
+    restored = Checkpoint(path, "test-token")
+    assert restored.note_attempts_remaining(NOW) == 0
+    assert restored.note_attempts_remaining(NOW, priority=True) == 60
+    with pytest.raises(PrivateNoteLimit):
+        restored.reserve_note_attempt(NOW)
+    for _ in range(60):
+        restored.reserve_note_attempt(NOW, priority=True)
+    assert restored.note_attempts_remaining(NOW, priority=True) == 0
+    with pytest.raises(PrivateNoteLimit):
+        restored.reserve_note_attempt(NOW, priority=True)
+    tomorrow = NOW + timedelta(days=1)
+    assert restored.note_attempts_remaining(tomorrow) == 40
+    assert restored.note_attempts_remaining(tomorrow, priority=True) == 100
+
+
+def test_priority_usage_does_not_consume_nonpriority_reserved_budget(monkeypatch):
+    monkeypatch.setenv("METACULUS_PRIVATE_NOTE_DAILY_LIMIT", "100")
+    monkeypatch.setenv("METACULUS_MINIBENCH_NOTE_RESERVE", "60")
+    state = Checkpoint()
+    for _ in range(60):
+        state.reserve_note_attempt(NOW, priority=True)
+    assert state.note_attempts_remaining(NOW) == 40
+    assert state.note_attempts_remaining(NOW, priority=True) == 40
+
+
+@pytest.mark.parametrize("value", ["-1", "101"])
+def test_invalid_reserve_is_rejected(value, monkeypatch):
+    monkeypatch.setenv("METACULUS_MINIBENCH_NOTE_RESERVE", value)
+    with pytest.raises(RuntimeError, match="INVALID_MINIBENCH_NOTE_RESERVE"):
+        Checkpoint()
+
+
+def test_failed_worker_retries_after_two_minutes_from_completion():
+    from metaculus_bot.automation import dispatch_decision
+    run = {"event": "schedule", "status": "completed", "conclusion": "failure",
+           "created_at": (NOW-timedelta(minutes=5)).isoformat(),
+           "updated_at": (NOW-timedelta(seconds=119)).isoformat()}
+    assert dispatch_decision([run], NOW) == (False, "failed_worker_cooldown", False)
+    run["updated_at"] = (NOW-timedelta(seconds=120)).isoformat()
+    assert dispatch_decision([run], NOW) == (True, "failed_worker_retry", False)
+
+
+def test_stuck_queue_is_reported_without_cancelling_or_duplicating_it():
+    from metaculus_bot.automation import dispatch_decision
+    run = {"event": "workflow_dispatch", "status": "queued", "created_at": (NOW-timedelta(minutes=15)).isoformat()}
+    assert dispatch_decision([run], NOW) == (False, "active_worker_stalled", True)
+    run["status"] = "in_progress"
+    assert dispatch_decision([run], NOW) == (False, "active_worker", False)
+
+
+def test_legacy_note_budget_cannot_bypass_reserved_capacity(monkeypatch):
+    monkeypatch.setenv("METACULUS_PRIVATE_NOTE_DAILY_LIMIT", "100")
+    monkeypatch.setenv("METACULUS_MINIBENCH_NOTE_RESERVE", "60")
+    state = Checkpoint()
+    state.state["private_notes"] = {"day": NOW.date().isoformat(), "attempts": 50}
+    assert state.note_attempts_remaining(NOW) == 0
+    assert state.note_attempts_remaining(NOW, priority=True) == 50
