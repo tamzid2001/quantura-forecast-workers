@@ -1,0 +1,31 @@
+name: Quantura MiniBench round coverage
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+      METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: metaculus_bot/requirements.lock
+      - run: python -m pip install --require-hashes -r metaculus_bot/requirements.lock
+      - name: Audit question counts and own receipts without inference or writes
+        run: python -m metaculus_bot.minibench
+      - uses: actions/upload-artifact@v7
+        with:
+          name: metaculus-minibench-coverage
+          path: artifacts/metaculus-minibench.json
+          retention-days: 30
+          if-no-files-found: error
