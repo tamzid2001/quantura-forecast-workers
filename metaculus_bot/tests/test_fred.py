@@ -18,7 +18,8 @@ def fetch(path, params):
 
 
 def question(text="US unemployment", criteria="", **extra):
-    return SimpleNamespace(question_text=text, resolution_criteria=criteria, fine_print="", background_info="", **extra)
+    return SimpleNamespace(question_text=text, resolution_criteria=criteria, fine_print="", background_info="",
+                           question_type="numeric", **extra)
 
 
 def test_fred_candidates_prioritize_exact_source_over_context_and_bound_requests():

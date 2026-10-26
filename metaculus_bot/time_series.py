@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .api import date, utcnow
 from .research import public_get
+from .probability import reviewed_binary_event, threshold_probability
 
 QUANTILES = [0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99]
 SILVER_PAGE = "https://www.natesilver.net/p/trump-approval-ratings-nate-silver-bulletin"
@@ -23,6 +24,8 @@ def definition(question, registry: list[dict]) -> dict | None:
     criteria_hash = hashlib.sha256(criteria.encode()).hexdigest()
     for spec in registry:
         if spec["question_id"] == question.id_of_question and spec["resolution_sha256"] == criteria_hash:
+            if question.question_type == "binary" and reviewed_binary_event(spec) is None:
+                return None
             return dict(spec)
     # This public resolution-source adapter is reusable across tournaments and
     # dates. It does not use a human's opinion or a preview of a bot prediction.
@@ -132,6 +135,20 @@ def forecast(question, spec: dict, python_executable: str) -> dict:
                  "The estimate assumes the observed dynamics remain informative. Structural changes and "
                  "the resolution source's measurement error can make its uncertainty too narrow. "
                  "No future observations or invented history were used.")
-    return {"percentiles": points, "reasoning": reasoning, "engine": "quantura_time_series",
+    answer = {"percentiles": points, "reasoning": reasoning, "engine": "quantura_time_series",
             "models": models, "weighting": data["weighting"], "model_provenance": data["provenance"],
             "source_ids": ["S1"], "sources": [{"id": "S1", **source}], "cost_usd": 0}
+    if question.question_type == "binary":
+        event = reviewed_binary_event(spec)
+        if event is None:
+            raise ValueError("EXACT_BINARY_EVENT_MAPPING_REQUIRED")
+        probability = threshold_probability(points, event["threshold"], event["operator"], assume_continuous=True)
+        answer.update(probability_yes=probability.point,
+                      probability_method=probability.method,
+                      probability_bounds=[probability.lower, probability.upper])
+        if probability.point is None:
+            answer.update(abstain=True, reasoning="The threshold lies outside the available quantile range. "
+                          "The forecast identifies probability bounds but no unique tail probability; no tail density was invented.")
+        else:
+            answer["reasoning"] += " Event probability uses an explicitly assumed continuous piecewise-linear CDF at the exact target observation, not the chance of touching a threshold."
+    return answer
