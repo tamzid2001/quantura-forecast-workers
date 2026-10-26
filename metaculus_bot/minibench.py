@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-from .api import ApiError, Metaculus, date, utcnow
+from .api import Metaculus, date, utcnow
 from .sdk.client import MetaculusClient
 from .sdk.questions import ConditionalQuestion
 
@@ -85,6 +85,14 @@ def main():
     result = audit(Metaculus(os.environ["METACULUS_TOKEN"]))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=2) + "\n")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+            summary.write("### MiniBench coverage (authoritative account history)\n\n")
+            summary.write("Round | Questions | Submitted | Closed without forecast | Open unanswered\n---|---:|---:|---:|---:\n")
+            for row in result["rounds"]:
+                counts = row["counts"]
+                summary.write(f"{row['id']} | {row['total_questions']} | {counts.get('submitted', 0)} | "
+                              f"{counts.get('closed_without_forecast', 0)} | {counts.get('open_unsubmitted', 0)}\n")
     print(json.dumps({"event": "metaculus_minibench_coverage", **result}))
 
 

@@ -474,7 +474,7 @@ def test_prize_priority_protects_minibench_and_futureeval_free_capacity():
               {'id':3,'name':'Market Pulse','bot_leaderboard_status':'include','prize_pool':'7500'},
               {'id':4,'name':'Metaculus Cup','bot_leaderboard_status':'exclude_and_show','prize_pool':'5000'}]
     ranks=competition_priorities(projects)
-    assert ranks=={1:0,2:0,3:1,4:2}
+    assert ranks=={1:0,2:1,3:2,4:3}
     now=datetime(2026,10,21,tzinfo=timezone.utc)
     questions=[SimpleNamespace(id_of_question=i,close_time=now+timedelta(hours=i)) for i in range(1,6)]
     memberships={1:{4},2:{3},3:{1},4:{2},5:{3,4}}
@@ -619,7 +619,7 @@ def test_private_note_daily_budget_survives_restart_and_resets_only_next_utc_day
     with pytest.raises(PrivateNoteLimit,match='PRIVATE_NOTE_DAILY_LIMIT'):restored.reserve_note_attempt(now)
     assert restored.note_attempts_remaining(now+timedelta(minutes=1)) == 12
     restored.reserve_note_attempt(now+timedelta(minutes=1))
-    assert Checkpoint(path,'test-token').state['private_notes']=={'day':'2026-10-11','attempts':1}
+    assert Checkpoint(path,'test-token').state['private_notes']=={'day':'2026-10-11','attempts':1,'priority_attempts':0}
 
 
 def test_batch_comment_cap_saves_next_answer_without_writing_it(posts,monkeypatch,tmp_path):

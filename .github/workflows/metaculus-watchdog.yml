@@ -1,5 +1,7 @@
 name: Quantura Metaculus watchdog
 on:
+  schedule:
+    - cron: '5,20,35,50 * * * *'
   workflow_dispatch:
     inputs:
       target:
@@ -19,7 +21,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       METACULUS_BOT_ENABLED: ${{ vars.METACULUS_BOT_ENABLED }}
-      WATCH_TARGET: ${{ inputs.target }}
+      WATCH_TARGET: ${{ inputs.target || 'both' }}
     steps:
       - uses: actions/checkout@v6
         with:

@@ -34,6 +34,7 @@ jobs:
       - name: Read the current worker checkpoint without replacing it
         run: python -m metaculus_bot.checkpoint --restore artifacts/metaculus-checkpoint.enc
       - name: Audit current MiniBench round coverage without forecasting
+        continue-on-error: true
         run: python -m metaculus_bot.minibench
       - name: Discover eligible open questions; make no predictions or submissions
         run: python -m metaculus_bot.runner --scope competitions --discover-only --checkpoint artifacts/metaculus-checkpoint.enc --report artifacts/metaculus-queue.json

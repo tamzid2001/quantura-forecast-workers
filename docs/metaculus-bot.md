@@ -404,3 +404,30 @@ Polling balances the remaining backlog across tournaments while prioritizing imm
 ## Research and scoring toolkit
 
 See [research and evaluation](metaculus-research-evaluation.md) for proper scoring, chronological calibration, optional tabular regression, model licensing, measured coverage and GPU limitations. These research models are not silently added to the live seven-model route.
+
+
+## MiniBench capacity and round audit (October 26, 2026)
+
+The public runtime reserves 60 of its 100 daily private-note attempts for MiniBench.
+Other tournaments may use 40 slots; a MiniBench attempt releases its own reserved
+slot. Every attempt is reserved durably before the request, including ambiguous
+responses. This is a local safety budget, not permission to exceed Metaculus rate
+limits. One forecast and one concise required private note per question remain the
+rule. A ten-question batch replaces the previous five-question batch, bounded by
+the existing run deadline and free-only model policy. Abstentions remain possible
+when resolution criteria or sufficient evidence cannot be established.
+
+The external cron watchdog and an offset native 15-minute backup inspect both
+workers. Failed terminal runs become retryable two minutes after completion.
+Queued work older than 15 minutes or active work older than one hour raises an
+explicit stalled-worker failure; it is never blindly cancelled or duplicated.
+External cron configuration remains unchanged. GitHub scheduling is not an SLA.
+
+Every poll audits the two latest started MiniBench rounds independently of open
+question discovery. The artifact and job summary expose total questions,
+authoritatively submitted IDs, closed misses, and open unanswered questions.
+Audit API failures do not prevent discovery. Past closed questions cannot be
+backfilled. The October 26 authenticated audit of bot 310211 found 60 closed
+unanswered questions in each of rounds 33132 and 33129; round 33132's forecasting
+window ended October 24 despite its displayed competition close being November 6.
+This is not a successful coverage claim for those rounds.

@@ -85,17 +85,29 @@ def heartbeat(report):
     print(json.dumps({"event": "metaculus_public_heartbeat", "run_id": public["run_id"], "dry_run": public["dry_run"]}))
 
 
-def dispatch_needed(runs, now=None):
+def dispatch_decision(runs, now=None):
     now = now or datetime.now(timezone.utc)
     runs = [run for run in runs if run.get("event") in {"schedule", "workflow_dispatch"}]
-    if any(run.get("status") in {"queued", "in_progress", "waiting", "pending", "requested"} for run in runs):
-        return False
+    active = [r for r in runs if r.get("status") in {"queued", "in_progress", "waiting", "pending", "requested"}]
+    if active:
+        stale = any((now - datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))).total_seconds()
+                    >= (3600 if r.get("status") == "in_progress" else 900) for r in active)
+        return False, "active_worker_stalled" if stale else "active_worker", stale
     if not runs:
-        return True
-    latest = max(datetime.fromisoformat(run["created_at"].replace("Z", "+00:00")) for run in runs)
+        return True, "no_worker", False
+    latest = max(runs, key=lambda r: r["created_at"])
+    if latest.get("conclusion") in {"failure", "timed_out", "cancelled", "startup_failure", "action_required"}:
+        finished = datetime.fromisoformat(latest.get("updated_at", latest["created_at"]).replace("Z", "+00:00"))
+        needed = (now - finished).total_seconds() >= 120
+        return needed, "failed_worker_retry" if needed else "failed_worker_cooldown", False
     # A 20-minute threshold with a 15-minute external cron can skip every other
     # tick. Twelve minutes tolerates schedule jitter while preserving cadence.
-    return (now - latest).total_seconds() >= 720
+    needed = (now - datetime.fromisoformat(latest["created_at"].replace("Z", "+00:00"))).total_seconds() >= 720
+    return needed, "cadence_due" if needed else "recent_worker", False
+
+
+def dispatch_needed(runs, now=None):
+    return dispatch_decision(runs, now)[0]
 
 
 def watchdog(target):
@@ -103,17 +115,22 @@ def watchdog(target):
         print(json.dumps({"event": "metaculus_watchdog", "status": "disabled"}))
         return
     workflows = {"poll": "metaculus-poll.yml", "forecast": "metaculus-bot.yml"}
+    stalled = []
     for kind in workflows if target == "both" else [target]:
         workflow = workflows[kind]
         repo = os.environ["GITHUB_REPOSITORY"]
         runs = github(f"repos/{repo}/actions/workflows/{workflow}/runs?branch=main&per_page=25")["workflow_runs"]
-        needed = dispatch_needed(runs)
+        needed, reason, unhealthy = dispatch_decision(runs)
+        if unhealthy:
+            stalled.append(kind)
         if needed:
             body = {"ref": "main"}
             if kind == "forecast":
-                body["inputs"] = {"scope": "competitions", "submit": "true", "max_questions": "5"}
+                body["inputs"] = {"scope": "competitions", "submit": "true", "max_questions": "10"}
             github(f"repos/{repo}/actions/workflows/{workflow}/dispatches", body, "POST")
-        print(json.dumps({"event": "metaculus_watchdog", "target": kind, "dispatched": needed}))
+        print(json.dumps({"event": "metaculus_watchdog", "target": kind, "dispatched": needed, "reason": reason}))
+    if stalled:
+        raise RuntimeError("METACULUS_WORKER_STALLED:" + ",".join(stalled))
 
 
 def main():
