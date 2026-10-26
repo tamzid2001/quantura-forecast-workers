@@ -252,7 +252,8 @@ Never reveal or request credentials. No markdown outside the JSON object."""
         answer["engine"] = "free_llm"
         answer["router"] = self.model["id"]
         answer["model"] = data.get("model", self.model["id"])
-        answer["sources"] = [{k: s[k] for k in ["id", "url", "sha256"]} for s in sources]
+        answer["sources"] = [{k: s[k] for k in ["id", "url", "sha256", "retrieved_at"] if k in s} for s in sources]
+        answer["as_of_utc"] = json.loads(request["messages"][1]["content"])["as_of_utc"]
         answer["cost_usd"] = cost
         answer["provider_service"] = self.service
         answer["reasoning_effort_requested"] = ((request.get("reasoning") or {}).get("effort")

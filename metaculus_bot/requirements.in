@@ -7,3 +7,7 @@ typing-extensions==4.16.0
 requests==2.34.2
 cryptography==50.0.1
 pytest==9.0.3
+
+# Test reporting only; never a model inference dependency.
+pytest-cov==7.1.0
+coverage==7.17.0

@@ -69,7 +69,7 @@ Uncertain writes are checked against Metaculus; writes aren't blindly retried.
 Selected general-purpose free models and MiniMax use JSON mode when supported for endpoint compatibility. The
 SDK validates exact question options, numeric units, ordered quantiles and CDFs
 before posting; JSON mode does not bypass distribution validation. An accepted
-but unusable response is encrypted and not automatically regenerated. A confirmed moderation-only routing result contains no forecast; it is audited and requeued after the model-routing fix. This does not change a usable forecast or select among candidate probabilities.
+but unusable response is encrypted and not automatically regenerated. Invalid numerical/distribution fields are quarantined once, preserving the original answer, rather than retried as an impossible submission on every tick. A confirmed moderation-only routing result contains no forecast; it is audited and requeued after the model-routing fix. This does not change a usable forecast or select among candidate probabilities.
 If a note exists without its exact recovery answer, the worker defers rather than
 generating a different prediction or posting another comment.
 Metaculus requests are spaced at least five seconds apart. Read retries honor
@@ -400,3 +400,7 @@ Polling balances the remaining backlog across tournaments while prioritizing imm
 ## FRED economic evidence
 
 `FRED_API_KEY` is an Actions secret, never a workflow input or source file. Discovery/research includes bounded FRED context for economic questions; native units and seasonal adjustment remain explicit. Only exact reviewed question/criteria mappings use FRED history for seven-model inference. See [FRED integration](fred.mdx). Installing this adapter does not enable submissions, alter comment controls or restart disabled schedules.
+
+## Research and scoring toolkit
+
+See [research and evaluation](metaculus-research-evaluation.md) for proper scoring, chronological calibration, optional tabular regression, model licensing, measured coverage and GPU limitations. These research models are not silently added to the live seven-model route.

@@ -66,3 +66,11 @@ def test_exact_event_mapping_cannot_silently_change_resolution_semantics(field, 
     assert reviewed_binary_event(spec) == spec["binary_event"]
     bad = copy.deepcopy(spec); bad["binary_event"][field] = value
     assert reviewed_binary_event(bad) is None
+
+
+def test_missing_event_and_invalid_quantile_numbers_are_rejected():
+    assert reviewed_binary_event({}) is None
+    for value in [True, math.inf]:
+        points = [{"percentile": .1, "value": value}, {"percentile": .9, "value": 4}]
+        with pytest.raises(ValueError):
+            threshold_probability(points, 3, "above")

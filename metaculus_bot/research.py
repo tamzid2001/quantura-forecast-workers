@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from .api import utcnow
+
 
 class Text(HTMLParser):
     def __init__(self):
@@ -81,11 +83,13 @@ def evidence(question) -> list[dict]:
             if len(excerpt) < 100:
                 continue
             results.append({"id": f"S{len(results) + 1}", "url": final, "sha256": hashlib.sha256(raw).hexdigest(),
+                            "retrieved_at": utcnow().isoformat(),
                             "excerpt": excerpt})
         except (requests.RequestException, ValueError, OSError):
             continue
     from .fred import evidence as fred_evidence
     for result in fred_evidence(question):
         result["id"] = f"S{len(results) + 1}"
+        result["retrieved_at"] = utcnow().isoformat()
         results.append(result)
     return results

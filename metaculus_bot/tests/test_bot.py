@@ -535,7 +535,7 @@ def test_approved_submission_requires_durable_recovery(monkeypatch):
 
 
 @pytest.mark.parametrize('answer,expected',[({'abstain':True,'reasoning':'Not enough evidence'},'abstained'),
-                                           ({'probability_yes':2,'reasoning':'Invalid distribution'},'deferred_error')])
+                                           ({'probability_yes':2,'reasoning':'Invalid distribution'},'unusable_generation_not_submitted')])
 def test_abstentions_and_invalid_forecasts_never_write_comments(posts,monkeypatch,tmp_path,answer,expected):
     from metaculus_bot import runner
     sample=next(copy.deepcopy(p) for p in posts if p.get('question',{}).get('type')=='binary')
@@ -551,7 +551,11 @@ def test_abstentions_and_invalid_forecasts_never_write_comments(posts,monkeypatc
         def forecast(self,q,sources):return answer
     args=SimpleNamespace(scope='test',engine='llm',submit=True,max_questions=1,question_ids=[],checkpoint=str(tmp_path/'checkpoint.enc'),report=str(tmp_path/'summary.json'))
     assert run(args,api,Llm)['counts']=={expected:1}
-    assert run(args,api,lambda key:pytest.fail('Reuse saved abstention/invalid answer'))['counts']=={expected:1}
+    assert run(args,api,lambda key:pytest.fail('Reuse saved abstention/invalid answer'))['counts']=={'abstained':1}
+    if expected == 'unusable_generation_not_submitted':
+        q = unpack(sample)[0]
+        pending = Checkpoint(args.checkpoint, 'test-token').get(q.id_of_question)
+        assert pending['unusable_response']['answer'] == answer
 
 
 def test_lost_note_response_recovers_original_answer_without_duplicate_note(posts,monkeypatch,tmp_path):
