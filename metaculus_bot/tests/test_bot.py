@@ -208,7 +208,7 @@ def test_general_free_model_uses_catalog_declared_json_mode(posts):
     with pytest.raises(FreeQuota):llm.forecast(one(posts,'numeric'),[])
     body=session.posts[0]['json']
     assert body['response_format']=={'type':'json_object'}
-    assert body['provider']=={'allow_fallbacks':False}
+    assert body['provider']=={'allow_fallbacks':False,'max_price':{'prompt':0,'completion':0}}
 
 
 def test_no_community_predictions_in_prompt(posts):

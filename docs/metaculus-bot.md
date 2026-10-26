@@ -104,8 +104,8 @@ and **50 attempts per UTC day** in the hosted profile (the local fallback is 12)
 capacity before each network request, including ambiguous writes. These are
 Quantura's own limits, not a claim about Metaculus's permitted posting volume.
 Unconfirmed note writes are not repeated: if their receipt is still missing after
-a restart, the original answer is held for review. A 401/403 during any question
-stops the entire batch immediately.
+a restart, the original answer is held for review. A Metaculus 401/403 during any question
+stops the entire batch immediately; provider authentication failures are not misclassified as bot moderation.
 
 ### Moderation restrictions
 
@@ -127,22 +127,74 @@ probability is disliked, and no tuning against previews of open tournament forec
 
 ## Free models and capacity
 
-The router checks the current OpenRouter catalog and permits only explicitly free
-general-purpose entries with zero listed prices. It pins Gemma 4 31B IT (free), with Nemotron 3 Ultra (free) as the catalog-selection alternative. The unrestricted free pool is excluded because it can route to moderation-only classifiers. It checks the key's free daily quota before each
-generation. It sends no paid search plugins, tool calls, or paid fallback models.
-If quota is exhausted or the service is unavailable, work is deferred. As configured
-on October 10, 2026, the account allows **50 free model requests/day**; the actual
-API quota is authoritative and may change. The default hosted batch is five new LLM
-questions and up to two numerical time-series questions per run. A UTC daily
-private-note limit is checked before new inference so exhausted posting capacity
-does not waste free model requests. Invalid answers
-and abstentions are reported. Complete coverage cannot be promised when free
-capacity is lower than the question backlog or questions close before processing.
+The router requests **high reasoning** when the selected free endpoint documents it.
+OpenRouter candidates must be text-generating `:free` entries with every listed
+price equal to zero. Gemma and NVIDIA Nemotron are preferred; newly listed free
+reasoning models are discovered automatically. Moderation, embedding, reranking,
+guard and reward models are excluded. Each request additionally caps OpenRouter
+prompt/completion prices at zero and disables its opaque provider fallbacks,
+paid search plugins and tools. Free daily quota is checked before generation.
+
+NVIDIA Build is an optional independent free hosted-offer route. Its fixed API
+host is `https://integrate.api.nvidia.com/v1`; no paid deployment partner is used.
+Store `NVIDIA_API_KEY` in runtime Actions Secrets and set the owner-approved
+`METACULUS_NVIDIA_FREE_APPROVED=true` repository variable. This is an explicit
+approval of the hosted evaluation offer, not a fabricated catalog price or a
+purchase of credits. NVIDIA does not report an OpenRouter-style free quota or
+cost in every response; missing values remain unknown. Trial terms and service
+rate limits still apply. This route is for the bot research/evaluation workflow,
+not an assertion of commercial production rights for every model.
+
+Native NVIDIA reasoning contracts differ:
+
+| Model | Requested effort | Verification on October 25, 2026 |
+|---|---|---|
+| `minimaxai/minimax-m3.1-flash` | chat-template `reasoning_effort=high` | Complete synthetic JSON forecast succeeded, 6.886 seconds |
+| `z-ai/glm-5.3-flash` | `reasoning_effort=high`, chat-template `clear_thinking=true` | Earlier short connectivity requests timed out; no quality claim |
+| `deepseek-ai/deepseek-v4.1-flash` | native numeric `reasoning_effort=100` | Synthetic request timed out after 90 seconds; completion unverified |
+
+The numeric DeepSeek setting follows its model card; it is not sent the GLM
+string enum. Consult the [MiniMax model card](https://build.nvidia.com/minimaxai/minimax-m3.1-flash/modelcard),
+[GLM model card](https://build.nvidia.com/z-ai/glm-5-3-flash/modelcard) and
+[DeepSeek model card](https://build.nvidia.com/deepseek-ai/deepseek-v4.1-flash/modelcard).
+Only MiniMax's complete synthetic response has been verified locally; these are
+connectivity checks, not tournament accuracy measurements.
+
+After a quota rejection or a transient transport failure with **no received
+answer**, the fixed route order tries NVIDIA models, then up to seven other
+verified free OpenRouter models, with at most twelve generation attempts. A
+transport timeout is recorded as uncertain inference, not falsely described as
+an explicit rejection. The LLM has no Metaculus write tools. A received usable
+answer, abstention, malformed answer or reported charge never triggers another
+model. Nonzero/unverifiable reported charges stop the worker for review. Pending
+answers and actual platform submissions remain deduplicated.
+
+High reasoning is bounded by an 8,192-token output cap, provider read timeouts,
+a six-minute per-question budget, a thirty-minute generation-job budget and a
+three-minute submission buffer. The worker does not lower effort to fit a late
+question; it defers work. GitHub schedules can still miss short windows. Free
+capacity is not unlimited and complete tournament coverage cannot be promised.
 
 Binary and multiple-choice probabilities are validated. Numeric, discrete and date
 forecasts use the official `forecasting-tools` distribution conversion, including
 logarithmic scales, open/closed bounds and the question's exact CDF size. Numeric
 answers use original units; dates use UTC timestamps.
+
+## Quantiles to binary events
+
+`metaculus_bot.probability.threshold_probability` reports bounds from sparse
+quantiles by default. It produces an interior point estimate only under an
+explicit continuous piecewise-linear CDF assumption. Unobserved tails remain
+bounds; tied quantiles require an atom/mass model. Strict above/below events
+remain distinct. An end-point distribution never estimates an ever-touch event.
+
+A binary time-series mapping additionally needs `binary_event` with the exact
+`variable`, native `unit`, `target_date`, `aggregation: point_in_time`,
+`distribution: continuous`, `operator: above|below` and finite `threshold`.
+These must agree with the reviewed series mapping and resolution-criteria hash.
+No automatic ticker/title match is enough. Outside-quantile thresholds abstain
+rather than inventing a tail density. No existing live question mapping was
+changed by this integration.
 
 ## Quantura time-series route
 
@@ -235,8 +287,7 @@ The live catalogs still reported zero model and MiniMax-provider prices on
 October 22. Quantura requires both checks before every request and disables this
 route immediately when either price becomes nonzero, with an outer cutoff of
 **00:00 UTC on October 23**. The provider may end the offer earlier. It then selects
-a verified free OpenRouter model before generating a new answer. Uncertain or
-accepted generations are never rerun through another provider.
+a verified free OpenRouter model before generating a new answer. An observed answer is never replaced through another provider. Transient transport failures with no received answer may use the bounded free failover route.
 
 To connect your own OpenRouter key:
 
@@ -281,7 +332,7 @@ gh variable set METACULUS_LLM_PROVIDER --body auto --repo tamzid2001/quantura-fo
 
 `auto` prefers the verified promotional MiniMax route and keeps OpenRouter as the
 free option after expiry. `vercel` alone defers when the promotion expires or
-prices are not zero. `openrouter` uses only the verified general-purpose free model whitelist. The dedicated
+prices are not zero. `openrouter` uses only verified general-purpose free catalog models. `nvidia` uses the fixed owner-approved NVIDIA hosted routes. The dedicated
 Gateway key created for this deployment expires after seven days and has the
 CLI’s smallest total quota ($1); this is a ceiling, not a purchase or permission
 to make paid requests. Price/expiry guards still apply to every inference.

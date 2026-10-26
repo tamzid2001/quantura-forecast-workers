@@ -54,7 +54,7 @@ jobs:
     needs: validate
     if: ${{ github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || vars.METACULUS_BOT_ENABLED == 'true') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     outputs:
       time_series_ids: ${{ steps.worker.outputs.time_series_ids }}
       time_series_post_ids: ${{ steps.worker.outputs.time_series_post_ids }}
@@ -66,6 +66,9 @@ jobs:
       METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      METACULUS_NVIDIA_FREE_APPROVED: ${{ vars.METACULUS_NVIDIA_FREE_APPROVED || 'false' }}
+      METACULUS_RUN_BUDGET_SECONDS: '1800'
       METACULUS_LLM_PROVIDER: ${{ vars.METACULUS_LLM_PROVIDER || 'auto' }}
       METACULUS_PARTICIPATION_FORM_CONFIRMED: ${{ vars.METACULUS_PARTICIPATION_FORM_CONFIRMED }}
       METACULUS_SUBMISSIONS_APPROVED: ${{ vars.METACULUS_SUBMISSIONS_APPROVED || 'false' }}

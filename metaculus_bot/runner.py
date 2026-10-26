@@ -5,13 +5,14 @@ import hashlib
 import json
 import os
 import re
+import time
 from collections import Counter, defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .api import ApiError, Metaculus, RateLimited, competition_policy, eligible_post, eligible_project, post_projects, utcnow
 from .checkpoint import Checkpoint, PrivateNoteLimit
-from .llm import FreeLLM, FreeQuota, InvalidModelOutput, NON_FORECAST_MODELS, free_llm_factory
+from .llm import CostPolicyViolation, FreeLLM, FreeQuota, InvalidModelOutput, NON_FORECAST_MODELS, free_llm_factory
 from .questions import already_submitted, context, payload, unpack
 from .research import evidence
 from .time_series import definition, forecast
@@ -188,6 +189,10 @@ def forecast_lifetimes(api):
 
 
 def run(args, api=None, llm_factory=free_llm_factory):
+    budget = int(os.environ.get("METACULUS_RUN_BUDGET_SECONDS", "1800"))
+    if not 180 <= budget <= 2280:
+        raise RuntimeError("INVALID_RUN_BUDGET")
+    run_deadline = time.monotonic() + budget
     if getattr(args, "submit", False) and os.environ.get("DRY_RUN") == "1":
         raise RuntimeError("DRY_RUN_BLOCKS_SUBMISSION")
     if getattr(args, "submit", False) and os.environ.get("METACULUS_SUBMISSIONS_APPROVED") != "true":
@@ -324,6 +329,12 @@ def run(args, api=None, llm_factory=free_llm_factory):
         if persisted:
             checkpoint.remove(q.id_of_question)
         record = record or checkpoint.get(q.id_of_question)
+        if q.close_time and (q.close_time - utcnow()).total_seconds() <= 180:
+            counts["submission_deadline_buffer_deferred"] += 1
+            continue
+        if args.engine == "llm" and time.monotonic() >= run_deadline - 120:
+            counts["run_budget_deferred"] += 1
+            break
         note = notes.get(q.id_of_question)
         if note and not record:
             counts["note_without_exact_recovery_deferred"] += 1
@@ -348,6 +359,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
                         model = getattr(llm, "model", {})
                         log("metaculus_llm_provider", service=getattr(llm, "service", "test"),
                             model=model.get("id"), paid_fallback=False)
+                    llm.deadline = min(run_deadline - 120, time.monotonic() + 360)
                     answer = llm.forecast(q, evidence(q))
                     log("metaculus_generation", question_id=q.id_of_question, engine="free_llm",
                         model=answer.get("model"), cost_usd=answer.get("cost_usd"), abstained=bool(answer.get("abstain")))
@@ -401,6 +413,9 @@ def run(args, api=None, llm_factory=free_llm_factory):
                     for row in coverage:
                         if row["id"] in memberships[q.id_of_question]:
                             row["submitted_this_run"] += 1
+        except CostPolicyViolation:
+            checkpoint.block("LLM_COST_POLICY_VIOLATION")
+            raise
         except InvalidModelOutput as error:
             record = {"question_id": q.id_of_question, "generated_at": utcnow().isoformat(),
                       "question_sha256": question_hash(q),
@@ -429,7 +444,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
             time_series_ids = []
             break
         except (ApiError, ValueError, KeyError, TypeError, RuntimeError) as error:
-            if isinstance(error, ApiError) and error.status in {401, 403}:
+            if isinstance(error, ApiError) and error.service.startswith("METACULUS") and error.status in {401, 403}:
                 # A permission denial stops the entire batch, not just this
                 # question. Repeated writes to a restricted account add no value.
                 raise
@@ -511,7 +526,7 @@ def main():
                             "discovered_open_questions": 0, "counts": {"api_rate_limit_deferred": 1},
                             "questions": [], "retry_after_seconds": round(error.retry_after, 1)})
     except (ApiError, FreeQuota, RuntimeError, KeyError) as error:
-        if isinstance(error, ApiError) and error.status in {401, 403} and args.checkpoint:
+        if isinstance(error, ApiError) and error.service.startswith("METACULUS") and error.status in {401, 403} and args.checkpoint:
             Checkpoint(args.checkpoint, os.environ["METACULUS_TOKEN"]).block(f"METACULUS_{error.status}")
         log("metaculus_worker_failed", error_type=type(error).__name__,
             upstream_status=error.status if isinstance(error, ApiError) else None,
