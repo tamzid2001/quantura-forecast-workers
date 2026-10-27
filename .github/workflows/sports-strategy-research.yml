@@ -1,0 +1,89 @@
+name: Sports strategy statistical review — paper research only
+on:
+  schedule:
+    - cron: '25 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: sports-statistical-research-v1
+  cancel-in-progress: false
+jobs:
+  research:
+    # Run on the existing public worker only; never consume private Actions minutes.
+    if: github.repository == 'tamzid2001/quantura-forecast-workers'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - name: Install small validation-only dependencies
+        run: python -m pip install pytest==9.1.1 pytest-cov==7.1.0 coverage==7.17.0
+      - name: Verify research math and point-in-time controls with real coverage
+        run: |
+          mkdir -p "$RUNNER_TEMP/sports-research-validation"
+          python -m pytest -q tests/test_sports_research*.py \
+            --cov=market_research.sports_research --cov-branch --cov-fail-under=90 \
+            --cov-report=term-missing \
+            --cov-report="xml:$RUNNER_TEMP/sports-research-validation/coverage.xml" \
+            --cov-report="lcov:$RUNNER_TEMP/sports-research-validation/lcov.info"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = Path(os.environ['RUNNER_TEMP'])/'sports-research-validation'
+          report = ET.parse(root/'coverage.xml').getroot()
+          classes = report.findall('.//class')
+          lines = report.findall('.//line')
+          assert classes and len(lines) > 500, 'Missing executed first-party coverage'
+          assert all(c.attrib['filename'].startswith('market_research/sports_research/') for c in classes)
+          assert any(int(line.attrib['hits']) > 0 for line in lines)
+          assert float(report.attrib['line-rate']) >= .90, 'Line coverage below 90%'
+          assert float(report.attrib['branch-rate']) >= .70, 'Branch coverage below 70%'
+          lcov = (root/'lcov.info').read_text()
+          assert 'SF:' in lcov and 'DA:' in lcov and 'end_of_record' in lcov
+          print('Research line coverage:', report.attrib['line-rate'], 'branch:', report.attrib['branch-rate'])
+          PY
+      - name: Analyze verified receipts and preserve the frozen shadow experiment
+        run: python -m market_research.sports_research.automation --output "$RUNNER_TEMP/sports-research"
+      - name: Show the statistical review
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/sports-research/REPORT.md" ]; then
+            cat "$RUNNER_TEMP/sports-research/REPORT.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Preserve the same prospective registration, including failed runs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: quantura-sports-research-registry-v1
+          path: ${{ runner.temp }}/sports-research/registry.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve measured diagnostics and source receipts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: quantura-sports-research-report-v1
+          path: |
+            ${{ runner.temp }}/sports-research/REPORT.md
+            ${{ runner.temp }}/sports-research/research.json
+            ${{ runner.temp }}/sports-research/prospective.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve measured software coverage
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: quantura-sports-research-coverage
+          path: ${{ runner.temp }}/sports-research-validation/
+          if-no-files-found: error
+          retention-days: 7

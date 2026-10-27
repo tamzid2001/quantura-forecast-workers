@@ -96,6 +96,7 @@ def plan(candidate, book, metadata, now):
     identity = f"{RULES.fingerprint}:{c['fixture_id']}:{c['signal_at']}:{c['provider']}:{c['contract_id']}"
     return {**c, "price": str(price), "quantity": str(quantity), "quantity_step": str(step),
             "decision_at": now, "quote_at": book["received_at"], "quote_ask": str(ask),
+            "entry_spread": str(ask-bid),
             "expires_at": expiry, "client_order_id": str(uuid.uuid5(uuid.NAMESPACE_URL, identity)),
             "rules_hash": RULES.fingerprint, "metadata": metadata,
             "filled": "0", "entry_cost": "0", "entry_fee": "0", "fills": [],

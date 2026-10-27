@@ -26,6 +26,7 @@ from urllib.parse import urlencode, quote
 from urllib.request import Request, urlopen
 import zipfile
 
+from .sports_research.features import FIELDS as RESEARCH_FIELDS, capture as capture_research_features
 from .game_p01_portfolio import BASELINE, SHALLOW, amount, fill, performance, sample_equity, select
 from .game_p01_hourly_comparison import HOURLY_RULES, comparison_markdown, ensure_portfolios, fill_hourly, select_hourly
 
@@ -372,7 +373,7 @@ def candidates_at(rows, hour, registry):
         if not fixture:
             counts["unverified_game_identity"] += 1
             continue
-        points = prices(row, hour-60, hour+60)
+        points = prices(row, hour-3600, hour+60)
         observed = [p for p in points if hour-60 < p["at"] <= hour]
         p01 = float(prediction["quantiles"]["0.01"])
         if not observed or not 0 < observed[-1]["ask"] < p01:
@@ -415,6 +416,9 @@ def candidates_at(rows, hour, registry):
         # Quantity constraints are explicit for the new comparison portfolios;
         # original portfolio hashes/accounting remain unchanged.
         quantity_step = (".01" if metadata.get("fractional_trading_enabled") is True else "1") if row["provider"] == "kalshi" else metadata.get("minimumTradeQty")
+        candidates[-1].update(capture_research_features(
+            points, hour, p01, observed[-1]["ask"], prediction.get("quantiles")))
+        candidates[-1]["entry_spread"] = None if point.get("bid") is None else point["ask"]-point["bid"]
         candidates[-1].update(signal_ask=observed[-1]["ask"], signal_quote_at=observed[-1]["at"],
                               opposite_ask=None if point.get("bid") is None else str(1-amount(point["bid"])),
                               quantity_step=quantity_step, minimum_quantity=quantity_step)
@@ -503,7 +507,7 @@ def stats(state, directory):
               "original_forecast_id", "artifact_id", "forecast_sha256", "published_at",
               "signal_at", "signal_quote_at", "signal_ask", "p01", "final_p01", "hourly_discount",
               "decision_at", "signal_entry_ask", "opposite_ask", "price", "quantity_step", "quantity",
-              "entry_cost", "entry_fee", "payout", "settlement_at", "accounting", "rules_hash"]
+              "entry_cost", "entry_fee", "payout", "settlement_at", "accounting", "rules_hash", *RESEARCH_FIELDS]
     with (directory/"comparison-ledger.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()

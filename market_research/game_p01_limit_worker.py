@@ -20,6 +20,7 @@ import time
 
 from . import game_p01_books as books
 from . import game_p01_paper as feed
+from .sports_research.features import FIELDS as RESEARCH_FIELDS, capture as capture_research_features
 from .game_p01_limit import (Journal, RULES, TERMINAL, cash_reserve, confirmed, paper_observe, plan, ranked, statistics)
 from .game_p01_portfolio import amount, fee
 
@@ -77,7 +78,8 @@ def signals(rows, hour, registry, venues):
                          "final_p01": predictions[-1]["quantiles"]["0.01"], "signal_at": hour,
                          "game_start": feed.stamp(row["game_start"]), "forecast_end": feed.stamp(row["forecast_end"]),
                          "published_at": row["publication_ts"],
-                         "forecast_sha256": hashlib.sha256(json.dumps(predictions, sort_keys=True).encode()).hexdigest()})
+                         "forecast_sha256": hashlib.sha256(json.dumps(predictions, sort_keys=True).encode()).hexdigest(),
+                         "signal_quantiles": prediction.get("quantiles", {})})
     return selected, counts
 
 
@@ -88,11 +90,14 @@ def prepare(row):
             raise ValueError("MISSED_LIVE_DECISION_WINDOW")
         # The candle only establishes the completed-hour signal; it never fills
         # an order or supplies the current order limit.
-        samples = [p for p in feed.prices(row, hour-60, hour) if hour-60 < p["at"] <= hour]
+        history = feed.prices(row, hour-3600, hour)
+        samples = [p for p in history if hour-60 < p["at"] <= hour]
         if not samples or not 0 < amount(samples[-1]["ask"]) < amount(row["p01"]):
             raise ValueError("NO_COMPLETED_HOUR_BELOW_P01_SIGNAL")
         metadata = books.constraints(row)
-        row = {**row, "signal_ask": samples[-1]["ask"], "signal_quote_at": samples[-1]["at"],
+        features = capture_research_features(history, hour, float(amount(row["p01"])),
+                                             samples[-1]["ask"], row.get("signal_quantiles"))
+        row = {**row, **features, "signal_ask": samples[-1]["ask"], "signal_quote_at": samples[-1]["at"],
                "fee_coefficient": metadata["fee_coefficient"]}
         return {"candidate": row, "metadata": metadata}, None
     except (RuntimeError, ValueError, KeyError, TypeError) as error:
@@ -241,7 +246,8 @@ class Worker:
         self.journal.checkpoint(directory)
         Path(directory, "stats.json").write_text(json.dumps(value, indent=2)+"\n")
         fields = ["fixture_id", "provider", "symbol", "side", "signal_at", "decision_at", "quote_ask", "p01", "price",
-                  "quantity", "filled", "entry_cost", "entry_fee", "state", "expires_at", "payout", "settlement_at", "accounting"]
+                  "quantity", "filled", "entry_cost", "entry_fee", "state", "expires_at", "payout", "settlement_at", "accounting",
+                  "signal_ask", "signal_quote_at", "forecast_sha256", "published_at", *RESEARCH_FIELDS]
         with Path(directory, "limit-ledger.csv").open("w", newline="") as stream:
             writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
             writer.writeheader()
