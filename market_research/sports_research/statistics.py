@@ -70,7 +70,8 @@ def daily(trades, extra_per_contract=0):
 
 
 def blocks(values, length=3):
-    return [math.fsum(values[i:i + length]) for i in range(0, len(values), length)]
+    # A shorter last block does not measure the declared three-day statistic.
+    return [math.fsum(values[i:i + length]) for i in range(0, len(values)-length+1, length)]
 
 
 def block_indices(n, draws, seed, length=3):
@@ -84,7 +85,7 @@ def block_indices(n, draws, seed, length=3):
 
 
 def bootstrap_comparison(baseline, selected, draws=2000, seed=20261027, min_days=8):
-    """Paired three-trading-day moving blocks retain same-day game correlations.
+    """Paired circular three-day moving blocks retain same-day correlations.
 
     These exploratory percentile intervals are pointwise, not simultaneous.
     The observed cohort is not asserted to be representative or stationary.

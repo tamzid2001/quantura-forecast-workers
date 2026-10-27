@@ -37,11 +37,12 @@ ledger left in the same output directory.
 - Sample variance and standard deviation describe dollars of net P&L per game.
   The return mean/std ratio is not annualized or presented as a Sharpe ratio.
 - Returns are grouped by UTC entry day. Three observed-trading-day moving-block
-  percentile bootstrap intervals keep same-day trades together. At least eight
+  circular percentile bootstrap intervals keep same-day trades together. At least eight
   observed days are needed; intervals are exploratory and pointwise. They are
   not guarantees under distribution shift, unobserved games or selection bias.
 - An exact one-sided sign test asks whether the median of independent nonzero
-  three-day profit blocks is positive. It is not a test of mean profit. Paired
+  complete three-day profit blocks is positive; a shorter final block is omitted.
+  It is not a test of mean profit. Paired
   block differences compare filters with their baseline on the same days.
 - Bonferroni adjustment includes all declared candidate tests and all three
   reported stages, including underpowered/missing-feature candidates. It does
@@ -134,6 +135,9 @@ the paper replay horizon are reported separately from artifact upload time.
 Before analysis, the workflow saves a frozen 60-day registration starting the next
 full UTC day. A two-day settlement grace period follows. The same registration
 is restored even after a failed run; a missing prior registration fails closed.
+The initial registration's complete-block clarification can be explicitly amended
+only before its first observation day, with its previous hash recorded and its
+original dates preserved. An attempted change after the start is rejected.
 Daily metrics are descriptive. Manual review requires at least 100 settled games,
 20 trading days, 90% at-entry feature availability, complete sources/settlements,
 positive return and improvement lower bounds, and corrected sign-test gates.

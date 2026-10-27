@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import urlencode
 
 from .data import load_inputs, timestamp
-from .prospective import assess, initialize, validate
+from .prospective import assess, initialize, restore
 from .study import analyze, markdown
 
 REPOSITORY = "tamzid2001/quantura-forecast-workers"
@@ -106,7 +106,7 @@ def registry(now):
     artifact = latest("quantura-sports-research-registry-v1", WORKFLOW, checkpoint=True)
     if artifact:
         body = unpack(gh(f"actions/artifacts/{artifact['id']}/zip", True), {"registry.json"})
-        return validate(json.loads(body["registry.json"]))
+        return restore(json.loads(body["registry.json"]), now)
     completed = gh("actions/workflows/sports-strategy-research.yml/runs?status=completed&per_page=1")
     if completed.get("workflow_runs"):
         raise RuntimeError("RESEARCH_REGISTRY_MISSING_CANNOT_SILENTLY_RESTART")

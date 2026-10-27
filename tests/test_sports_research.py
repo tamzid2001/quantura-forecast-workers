@@ -1,4 +1,5 @@
 """Deterministic statistical and point-in-time controls; no exchange/model access."""
+import hashlib
 import io
 import json
 import subprocess
@@ -222,7 +223,8 @@ class StatisticsTests(unittest.TestCase):
         self.assertEqual(a, list(statistics.block_indices(12, 3, 17)))
         self.assertEqual(len(a[0]), 12)
         self.assertEqual((a[0][0] + 1) % 12, a[0][1])
-        self.assertEqual(statistics.blocks([1, 2, 3, 4]), [6, 4])
+        self.assertEqual(statistics.blocks([1, 2, 3, 4]), [6])
+        self.assertEqual(statistics.blocks([1, 2]), [])
 
     def test_block_bootstrap_refuses_tiny_day_sample(self):
         rows = [trade(i) for i in range(7)]
@@ -340,6 +342,24 @@ class StudyTests(unittest.TestCase):
 
 
 class ProspectiveTests(unittest.TestCase):
+    def test_legacy_design_amendment_is_audited_and_cannot_move_or_restart_dates(self):
+        state = prospective.initialize(BASE+100)
+        original_dates = {k: state[k] for k in ("created_at", "starts_at", "ends_at", "evaluate_after")}
+        legacy = dict(state["design"])
+        legacy.pop("sign_test_tail")
+        legacy.pop("sha256")
+        legacy["sha256"] = hashlib.sha256(json.dumps(legacy, sort_keys=True).encode()).hexdigest()
+        state = {**state, "design": legacy}
+        restored = prospective.restore(state, BASE+101)
+        self.assertEqual({k: restored[k] for k in original_dates}, original_dates)
+        self.assertEqual(restored["amendments"][0]["previous_design_sha256"], legacy["sha256"])
+        self.assertEqual(prospective.restore(restored, BASE+86400), restored)
+        with self.assertRaisesRegex(ValueError, "DESIGN_CHANGED"):
+            prospective.restore(state, BASE+86400)
+        tampered = {**state, "design": {**legacy, "days": 1}}
+        with self.assertRaises(ValueError):
+            prospective.restore(tampered, BASE+101)
+
     def test_registration_freezes_next_day_and_sixty_day_window(self):
         state = prospective.initialize(BASE + 12)
         self.assertEqual(data.timestamp(state["starts_at"]), BASE + 86400)

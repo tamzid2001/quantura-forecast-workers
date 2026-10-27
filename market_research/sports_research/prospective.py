@@ -20,6 +20,7 @@ def design():
     value = {"schema": VERSION, "days": HORIZON_DAYS, "minimum_trades": MIN_TRADES,
              "minimum_trading_days": MIN_DAYS, "settlement_grace_days": 2,
              "alpha": .05, "block_length_trading_days": 3,
+             "sign_test_tail": "discard incomplete final three-day block",
              "candidate_semantics": "baseline first-choice veto; no replacement trade",
              "families": {cohort + ":" + strategy: {f.name: f.fingerprint() for f in candidates(strategy)}
                           for cohort, strategy in FAMILIES},
@@ -44,6 +45,25 @@ def validate(state):
             or final - end != 2 * 86400):
         raise ValueError("INVALID_FROZEN_RESEARCH_WINDOW")
     return state
+
+
+def restore(state, now):
+    """Amend the initial registration only BEFORE its first observation day.
+
+    The sole recognized legacy design predates complete-block sign tests.
+    Keep the original start/end/grace and record its hash; never silently move
+    an experiment or reinterpret collected outcomes after it has started.
+    """
+    if state.get("design") != design():
+        legacy = design()
+        legacy.pop("sign_test_tail")
+        legacy.pop("sha256")
+        legacy["sha256"] = hashlib.sha256(json.dumps(legacy, sort_keys=True).encode()).hexdigest()
+        if state.get("design") == legacy and timestamp(state["created_at"]) <= now < timestamp(state["starts_at"]):
+            state = {**state, "design": design(), "amendments": [*state.get("amendments", []), {
+                "at": iso(now), "previous_design_sha256": legacy["sha256"],
+                "reason": "Exclude incomplete sign-test blocks before any prospective observation; dates preserved."}]}
+    return validate(state)
 
 
 def assess(state, trades, sources, now, draws=2000, seed=20261027):

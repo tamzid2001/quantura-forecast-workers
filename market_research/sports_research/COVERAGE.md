@@ -3,11 +3,11 @@
 Python 3.12.8, pytest 9.1.1, pytest-cov 7.1.0 and coverage.py 7.17.0.
 
 The research tests and existing paper/snapshot/hourly-comparison/limit regression
-suites passed: **154 tests and 53 subtests**. The source-only research suite is
+suites passed: **155 tests and 53 subtests**. The source-only research suite is
 also independently runnable on the public worker without exchange/model SDKs.
 
-Measured research-package line coverage: **805 / 823 = 97.81%**.
-Measured branch coverage: **287 / 308 = 93.18%**.
+Measured research-package line coverage: **814 / 832 = 97.84%**.
+Measured branch coverage: **291 / 312 = 93.27%**.
 These percentages apply to `market_research/sports_research`, not the whole
 Quantura repository or exchange services. They are executed Python control/math
 coverage, not trading-fill verification.
