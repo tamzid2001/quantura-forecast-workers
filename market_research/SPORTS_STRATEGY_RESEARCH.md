@@ -99,6 +99,10 @@ crossing, opposite-price caps, spread caps and overshoot bands are distinct
 exploratory vetoes. Exact equality, interpolated model endpoints, stale quotes,
 missing next-minute quotes and already closed/settled entries are excluded.
 Missing histories are coverage gaps, never counted as observed no-signal hours.
+Two additional history-depth vetoes (at least 100 or 250 genuine pregame hourly
+observations) were introduced after descriptive inspection. Their historical
+comparisons are explicitly post-hoc, not preregistered or an untouched holdout.
+These counts are observed input depth, not interpolated bars or post-signal data.
 
 This module consumes native original-side bid/ask points, a catalog row and the
 saved result format from `game_p01_month`. It returns auditable candidate rows:

@@ -11,6 +11,7 @@ HOUR = 1789905600
 def result():
     curve = {"0.01": .1, "0.25": .3, "0.5": .4, "0.75": .5, "0.9": .6, "0.99": .7}
     return {"kickoff": HOUR-3600, "cutoff": HOUR-7200, "end": HOUR+3600,
+            "context_count": 100,
             "assumed_available_at": HOUR-3600, "historical_publication": False,
             "predictions": [{"timestamp": HOUR, "quantiles": curve},
                             {"timestamp": HOUR+3600, "quantiles": curve}],
@@ -168,7 +169,24 @@ class P99Tests(unittest.TestCase):
         for margin, expected in ((None, "missing_feature"), (0, "veto"), (.01, "keep")):
             trade.features["signal_bid_margin"] = margin
             self.assertEqual(veto.decision(trade), expected)
-        self.assertEqual(len(filters.candidates(data.P99)), 14)
+        self.assertEqual(len(filters.candidates(data.P99)), 16)
+
+    def test_history_filter_uses_only_saved_pregame_context_and_reports_missing(self):
+        row = p99.candidate_rows(contract(), result(), points())[0][0]
+        trade = p99.timed_trades([row])[0]
+        veto = filters.P99HistoryVeto("history100", minimum_context=100)
+        self.assertEqual(veto.decision(trade), "keep")
+        for value, expected in ((99, "veto"), (None, "missing_feature"), (250, "keep")):
+            trade.features["context_count"] = value
+            self.assertEqual(veto.decision(trade), expected)
+        self.assertEqual(filters.P99HistoryVeto("expensive", price_cap=.1).decision(trade), "veto")
+        trade.features["context_count"] = 99.5
+        with self.assertRaisesRegex(ValueError, "CONTEXT"):
+            veto.decision(trade)
+        forecast = result()
+        forecast["context_count"] = True
+        with self.assertRaisesRegex(ValueError, "CONTEXT"):
+            p99.candidate_rows(contract(), forecast, points())
 
 
 if __name__ == "__main__":

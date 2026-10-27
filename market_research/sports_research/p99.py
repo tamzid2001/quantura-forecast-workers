@@ -73,6 +73,9 @@ def candidate_rows(row, result, points):
     if row.get("side") not in SIDES.get(row.get("provider"), {}):
         raise ValueError("INVALID_ECONOMIC_SIDE")
     hours = forecast_hours(result)
+    context_count = result["context_count"]
+    if type(context_count) is not int or not 1 <= context_count <= 500:
+        raise ValueError("INVALID_PREGAME_CONTEXT_COUNT")
     quotes = clean_points(points)
     result_rows, counts = [], Counter()
     prediction_hash = hashlib.sha256(json.dumps(result["predictions"], sort_keys=True,
@@ -131,6 +134,7 @@ def candidate_rows(row, result, points):
             "signal_at": hour, "signal_quote_at": signal["at"], "signal_ask": signal["ask"],
             "signal_bid": signal["bid"], "signal_bid_margin": str(decimal(signal["bid"], "signal_bid")-p99),
             "p99": str(p99), "final_p99": final_p99,
+            "context_count": context_count,
             "overshoot": str(decimal(signal["ask"], "signal_ask")-p99),
             "signal_entry_ask": quote["ask"], "opposite_ask": str(price),
             "entry_spread": str(decimal(quote["ask"], "ask")-decimal(quote["bid"], "bid")),

@@ -131,7 +131,7 @@ def normalize(row, cohort):
     else:
         discount = float(decimal(row["p01"], "p01")) - signal_ask
     features["discount"] = discount
-    for name in ("overshoot", "signal_bid_margin", "final_p99"):
+    for name in ("overshoot", "signal_bid_margin", "final_p99", "context_count"):
         features[name] = optional_number(row, name)
     original_ask = optional_number(row, "signal_entry_ask")
     opposite_ask = optional_number(row, "opposite_ask")

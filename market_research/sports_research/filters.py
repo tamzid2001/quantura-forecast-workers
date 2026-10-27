@@ -67,6 +67,24 @@ class EntryVeto:
         return "keep"
 
 
+@dataclass(frozen=True)
+class P99HistoryVeto(EntryVeto):
+    """Ex-ante depth of the saved pregame input, never post-game observations."""
+
+    minimum_context: int = 100
+
+    def decision(self, trade):
+        base = super().decision(trade)
+        if base != "keep":
+            return base
+        observed = trade.features.get("context_count")
+        if observed is None:
+            return "missing_feature"
+        if not 1 <= observed <= 500 or observed != int(observed):
+            raise ValueError("INVALID_PREGAME_CONTEXT_COUNT")
+        return "keep" if observed >= self.minimum_context else "veto"
+
+
 def candidates(strategy):
     if strategy == P99:
         return [EntryVeto("baseline"),
@@ -80,7 +98,9 @@ def candidates(strategy):
                 EntryVeto("exclude_obvious_props", exclude_obvious_props=True),
                 EntryVeto("opposite30_spread1", price_cap=.30, spread_cap=.01),
                 EntryVeto("bid_confirmed_spread1_no_props", spread_cap=.01,
-                          require_bid_above_p99=True, exclude_obvious_props=True)]
+                          require_bid_above_p99=True, exclude_obvious_props=True),
+                P99HistoryVeto("pregame_context_at_least_100h", minimum_context=100),
+                P99HistoryVeto("pregame_context_at_least_250h", minimum_context=250)]
     band = [EntryVeto("discount_at_least_15c", discount_floor=.15),
             EntryVeto("discount_at_least_20c", discount_floor=.20)] if strategy == OUTSIDE else [
                 EntryVeto("discount_at_most_2c", discount_cap=.02),
