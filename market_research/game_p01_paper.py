@@ -37,6 +37,9 @@ FEEDS = [f"games-{provider}-{shard}" for provider in ("kalshi", "polymarket_us")
 KALSHI = "https://external-api.kalshi.com/trade-api/v2"
 POLY = "https://gateway.polymarket.us"
 MAX_BYTES = 32*1024*1024
+# Full seven-model screener snapshots can expand past the checkpoint/provider cap.
+# This separate ceiling remains bounded; checkpoints and HTTP responses retain 32 MiB.
+MAX_SNAPSHOT_BYTES = 64*1024*1024
 try:
     import certifi
     TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
@@ -97,9 +100,10 @@ def compressed_json(blob, member):
         if len(members) != 1 or members[0].filename != member or members[0].file_size > MAX_BYTES:
             raise ValueError("INVALID_ARTIFACT_MEMBERS")
         packed = archive.read(member)
+    expanded_limit = MAX_SNAPSHOT_BYTES if member == "snapshot.json.gz" else MAX_BYTES
     with gzip.GzipFile(fileobj=io.BytesIO(packed)) as stream:
-        raw = stream.read(MAX_BYTES+1)
-    if len(raw) > MAX_BYTES:
+        raw = stream.read(expanded_limit+1)
+    if len(raw) > expanded_limit:
         raise ValueError("DECOMPRESSED_ARTIFACT_TOO_LARGE")
     return json.loads(raw)
 
