@@ -9,7 +9,7 @@
     ".github/workflows/homepage-stock-screener.yml": "a2081316bc3ced231e6267edf77909cac13d0d26c926a36c4618eb4f62a4b949",
     ".github/workflows/hourly-game-screener.yml": "f465169d750499f658d2ae06b636cbcd57491ca69d91e1ac98e92ab5de4ceb51",
     ".github/workflows/hourly-perpetual-screener.yml": "b5a7609cb9c184e5cee0f26947075db064cf70971117d28f2d48a69fde44700e",
-    ".github/workflows/metaculus-bot.yml": "74bb97923139213f9862bcdbda280d90dc9c4d0fd9a65fc2c5e411b5fc143e05",
+    ".github/workflows/metaculus-bot.yml": "eede95a3eaabec1fa0f7823c98c18acc94821b0535710e6b63772b44a508d08a",
     ".github/workflows/metaculus-coverage.yml": "bf4e196b007cca71e9f5ef1c2fec37d58ad01a2a5cc49710f57714468cb8f3e9",
     ".github/workflows/metaculus-poll.yml": "79b3e0aba56cf284363a8d1ea19abef52c1b25615b920db885331ab453cfa404",
     ".github/workflows/metaculus-readiness.yml": "2db9ddfec700da79c787ca643abc35bc71efea0aa59c4baad16729e303929667",
@@ -32,7 +32,7 @@
     "docs/RDMA_ASSESSMENT.md": "f10913fb76e53933b7c461c3f71a6592e0e918c082e9f9c2989243ad89ba8fbb",
     "docs/RIGHTS.md": "b8f59dc5807106184a4eebaba5110b37afe67a5b2788dae29097450a76f7724f",
     "docs/TERMS_OF_USE.md": "e17b3c09a9b4afe2865536b0f5aebfc4465511c87e1984b9fb36b6de52423d6c",
-    "docs/metaculus-bot.md": "5ad27542c7e92788ed67a725921b1f6d145d825821a6daf4a7d342e50583e500",
+    "docs/metaculus-bot.md": "96d1a7f0983fd4b442288b84ac8cdf7d6fd737789cef2ddfc490c7432767e8d7",
     "docs/metaculus-research-evaluation.md": "c44c92602e3f76b2c543294a912251ec040c71843c60345102b904a176f69f27",
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
@@ -137,7 +137,7 @@
   },
   "component_sources": {
     "metaculus_bot": {
-      "source_commit": "ed6034594c7e2e8a15740b8ffb0454e88987492c",
+      "source_commit": "23f248681622f2626a2a020dd8000cf5f52e99dc",
       "files": [
         "docs/metaculus-bot.md",
         "metaculus_bot/api.py",

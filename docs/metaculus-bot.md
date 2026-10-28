@@ -457,3 +457,5 @@ otherwise a clearly labelled 14-day cadence estimate is provided. From the Octob
 require the current API question to be open with forecast permission.
 
 Reference: [Metaculus bot resources and one-forecast/private-note rules](https://www.metaculus.com/notebooks/38928/bot-tournament-resources-page/).
+
+Validation jobs remove GitHub step-summary/output paths from the pytest process environment. Fixture-only forecasts therefore cannot appear in operational run summaries or step outputs; the live discovery job keeps its normal summary and output paths.

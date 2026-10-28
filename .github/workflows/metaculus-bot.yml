@@ -49,7 +49,7 @@ jobs:
           cache-dependency-path: metaculus_bot/requirements.lock
       - run: python -m pip install --require-hashes -r metaculus_bot/requirements.lock
       - name: Run bot tests and measure new probability/research modules
-        run: python -m pytest -q metaculus_bot/tests --cov --cov-config=metaculus_bot/coverage.ini --cov-report=term-missing --cov-report=xml:artifacts/metaculus-coverage.xml
+        run: env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT python -m pytest -q metaculus_bot/tests --cov --cov-config=metaculus_bot/coverage.ini --cov-report=term-missing --cov-report=xml:artifacts/metaculus-coverage.xml
       - name: Validate executed coverage and scoped quality gates
         run: |
           python - <<'PYCODE'
@@ -75,7 +75,7 @@ jobs:
           retention-days: 30
 
       - name: Measure numeric conversion and worker recovery coverage
-        run: python -m pytest -q metaculus_bot/tests --cov=metaculus_bot.api --cov=metaculus_bot.runner --cov=metaculus_bot.minibench --cov=metaculus_bot.sdk.numeric_report --cov-branch --cov-report=term --cov-report=xml:artifacts/metaculus-reliability-coverage.xml
+        run: env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT python -m pytest -q metaculus_bot/tests --cov=metaculus_bot.api --cov=metaculus_bot.runner --cov=metaculus_bot.minibench --cov=metaculus_bot.sdk.numeric_report --cov-branch --cov-report=term --cov-report=xml:artifacts/metaculus-reliability-coverage.xml
       - name: Validate reliability coverage artifact and thresholds
         run: |
           python - <<'PYCODE'
