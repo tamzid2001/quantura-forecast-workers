@@ -13,9 +13,11 @@
     "helpers/metaculus_client.py": "ed32d25c33b3bf437991198b59913c5ea382747604601617ffc90dc38bfeceed"
   },
   "changes": [
-    "Retain question models, parser/group methods and CDF implementation unchanged",
+    "Retain question models, parser/group methods and CDF implementation with the documented local corrections below",
     "Use local imports",
     "Remove unused Jsonable file-I/O base",
-    "Omit network clients, LLM/search integrations and reporting classes"
+    "Omit network clients, LLM/search integrations and reporting classes",
+    "Preserve the closed-lower-bound CDF convention during standardization",
+    "Use right-continuous interpolation for equal scaled quantile locations; reject non-finite scales and zero inbound mass"
   ]
 }

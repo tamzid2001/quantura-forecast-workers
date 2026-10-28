@@ -77,10 +77,11 @@ Metaculus requests are spaced at least five seconds apart. Read retries honor
 of crashing the worker, and a restored cooldown prevents requests before it expires.
 Own comments are read once per job, saved abstentions do not consume new-generation
 capacity, and the time-series job fetches only the posts selected during discovery.
-Pending exact answers are recovered first. New questions in prize-bearing
-MiniBench and FutureEval rounds take priority, followed by other tournaments
+MiniBench questions take priority even if prize metadata is missing. FutureEval
+questions follow, then other tournaments
 whose policies permit potential bot prizes, then non-prize practice. Within each
-tier, questions closing within two hours take priority. The remaining backlog is balanced across tournaments by processed
+tier, pending exact answers recover first, then questions closing within two hours.
+The remaining backlog is balanced across tournaments by processed
 question counts, with the earliest deadline first within each tournament. Questions
 shared by tournaments receive one forecast and count toward each tournament's
 coverage. Selection never depends on forecast probabilities or leaderboard scores.
@@ -431,3 +432,28 @@ backfilled. The October 26 authenticated audit of bot 310211 found 60 closed
 unanswered questions in each of rounds 33132 and 33129; round 33132's forecasting
 window ended October 24 despite its displayed competition close being November 6.
 This is not a successful coverage claim for those rounds.
+
+### October 28 reliability correction
+
+The retained CDF converter previously divided by zero when repeated quantiles
+collapsed to identical floating-point locations (including date-sized values).
+Interpolation now handles a repeated location as a right-continuous jump and
+keeps the platform's existing standardization rules. Invalid scales and zero
+inbound mass raise validation errors. Arithmetic failures are isolated per
+question, audited privately, and cannot terminate processing of later questions.
+An already generated answer is not regenerated merely to change its values.
+
+The polling artifact now includes a tournament catalog with eligibility or
+exclusion reasons, including missing forecast permission and future starts.
+It refreshes from both live tournament and MiniBench catalogs on every poll;
+new tournaments and changing round IDs require no hard-coded ID update. Discovery
+does not claim bot prize eligibility where tournament policy excludes it.
+
+MiniBench has priority over saved practice answers, while saved answers recover
+first within their priority tier. The round audit reports any unanswered questions
+closing within 45 minutes. It records the next published round when available;
+otherwise a clearly labelled 14-day cadence estimate is provided. From the October
+19 round, the next expected start is November 2, 2026. Actual submissions always
+require the current API question to be open with forecast permission.
+
+Reference: [Metaculus bot resources and one-forecast/private-note rules](https://www.metaculus.com/notebooks/38928/bot-tournament-resources-page/).

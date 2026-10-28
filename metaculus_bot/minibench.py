@@ -6,6 +6,7 @@ from collections import Counter
 import copy
 import json
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from .api import Metaculus, date, utcnow
@@ -38,6 +39,17 @@ def audit(api, now=None):
     recent = started[:2] + upcoming[-2:]
     report = {"at": now.isoformat(), "bot_id": identity["id"], "live_submissions": 0,
               "catalog": [{key: p.get(key) for key in FIELDS} for p in recent], "rounds": []}
+    if upcoming:
+        next_round = min(upcoming, key=lambda p: date(p["start_date"]))
+        report["next_round"] = {"id": next_round["id"], "start_date": next_round["start_date"],
+                                "source": "published_catalog"}
+    elif started and date(started[0].get("start_date")):
+        # Operational estimate only; actual activation always uses fresh API
+        # dates, permissions and open-question state, never this estimate.
+        start = date(started[0]["start_date"])
+        cycles = max(1, int((now-start).total_seconds() // (14*86400)) + 1)
+        report["next_round"] = {"id": None, "start_date": (start+timedelta(days=14*cycles)).isoformat(),
+                                "source": "14_day_cadence_estimate"}
     print(json.dumps({"event": "metaculus_minibench_catalog", "catalog": report["catalog"]}))
     for project in started[:2]:
         # No status filter: include closed/resolved questions to expose missed
@@ -61,6 +73,7 @@ def audit(api, now=None):
                 failures += 1
         own = api.own_forecasts(list(questions))
         counts = Counter()
+        urgent = []
         for q in questions.values():
             if q.id_of_question in own:
                 counts["submitted"] += 1
@@ -70,10 +83,13 @@ def audit(api, now=None):
                 counts["upcoming"] += 1
             elif str(q.state.value) == "open":
                 counts["open_unsubmitted"] += 1
+                if q.close_time and q.close_time <= now + timedelta(minutes=45):
+                    urgent.append(q.id_of_question)
             else:
                 counts["other_unsubmitted"] += 1
         report["rounds"].append({"id": project["id"], "name": project.get("name"),
             "total_questions": len(questions), "parse_failures": failures, "counts": dict(counts),
+            "urgent_unsubmitted_question_ids": sorted(urgent),
             "coverage_pct": 100 * len(own & questions.keys()) / len(questions) if questions else None})
     return report
 
@@ -94,6 +110,10 @@ def main():
                 summary.write(f"{row['id']} | {row['total_questions']} | {counts.get('submitted', 0)} | "
                               f"{counts.get('closed_without_forecast', 0)} | {counts.get('open_unsubmitted', 0)}\n")
     print(json.dumps({"event": "metaculus_minibench_coverage", **result}))
+    for row in result["rounds"]:
+        if row["urgent_unsubmitted_question_ids"]:
+            print("::warning::MiniBench has " + str(len(row["urgent_unsubmitted_question_ids"])) +
+                  " unanswered questions closing within 45 minutes; inspect the forecast worker now.")
 
 
 if __name__ == "__main__":

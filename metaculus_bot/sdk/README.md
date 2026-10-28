@@ -8,7 +8,14 @@ The bot uses these models but does not use that package's LLM, search or network
 clients. Installing the complete package also installed AskNews, whose dependency
 range prevented the cryptography security update. Keeping only the existing pure
 model implementation removes that dependency conflict without overriding package
-constraints or changing the CDF calculation.
+constraints. Local CDF corrections are recorded in `provenance.json`.
+
+The October 28 reliability patch handles repeated scaled quantile locations as
+right-continuous CDF jumps instead of dividing by a zero-width interval. It also
+rejects non-finite bounds and zero inbound mass with validation errors. The
+upstream CDF grid, log/date transforms, probability-mass caps and closed-bound
+normalization remain in use. Regression tests cover large numeric/date scales,
+discrete grids, log scales, concentrated distributions and invalid scales.
 
 Do not replace these files with simplified probability math. Compare question
 parsing, dates, scaling, conditional/group questions and every CDF ordinate with
