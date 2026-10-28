@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import math
+from bisect import bisect_left, bisect_right
 from collections import Counter
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -102,6 +104,15 @@ class NumericDistribution(BaseModel):
     @model_validator(mode="after")
     def validate_percentiles(self: NumericDistribution) -> NumericDistribution:
         percentiles = self.declared_percentiles
+        if (not all(math.isfinite(v) for v in (self.lower_bound, self.upper_bound))
+                or not 0 < self.upper_bound - self.lower_bound < math.inf):
+            raise ValueError("FINITE_INCREASING_NUMERIC_BOUNDS_REQUIRED")
+        if self.cdf_size is not None and self.cdf_size < 2:
+            raise ValueError("CDF_REQUIRES_AT_LEAST_TWO_LOCATIONS")
+        if self.zero_point is not None and not math.isfinite(self.zero_point):
+            raise ValueError("FINITE_ZERO_POINT_REQUIRED")
+        if any(not math.isfinite(p.value) for p in percentiles):
+            raise ValueError("FINITE_QUANTILES_REQUIRED")
         self._check_percentiles_increasing()
         self._check_log_scaled_fields()
 
@@ -513,19 +524,35 @@ class NumericDistribution(BaseModel):
             height = percentile.percentile
             location = self._nominal_location_to_cdf_location(percentile.value)
             cdf_location_to_percentile_mapping.append((location, height))
-        previous = cdf_location_to_percentile_mapping[0]
-        for i in range(1, len(cdf_location_to_percentile_mapping)):
-            current = cdf_location_to_percentile_mapping[i]
-            epsilon = 1e-10
-            if previous[0] - epsilon <= cdf_location <= current[0] + epsilon:
-                result = previous[1] + (current[1] - previous[1]) * (
-                    cdf_location - previous[0]
-                ) / (current[0] - previous[0])
-                if np.isnan(result):
-                    raise ValueError(f"Result is NaN for cdf location {cdf_location}")
-                return result
-            previous = current
-        raise ValueError(f"CDF location Input {cdf_location} cannot be found")
+        locations = [point[0] for point in cdf_location_to_percentile_mapping]
+        if (not math.isfinite(cdf_location) or not all(map(math.isfinite, locations))
+                or any(b < a for a, b in zip(locations, locations[1:]))):
+            raise ValueError("INVALID_CDF_INTERPOLATION_LOCATIONS")
+        # Repeated values encode a jump. At the jump choose its rightmost
+        # percentile; immediately below it interpolate toward its first one.
+        # Tiny upstream value adjustments can disappear at date/large-number
+        # precision, so they must never be relied on to make intervals nonzero.
+        index = bisect_right(locations, cdf_location)
+        if cdf_location == 0:
+            # The platform's first ordinate is P(X < lower_bound), unlike
+            # interior ordinates P(X <= x). Keep mass exactly at the lower
+            # boundary in the first inbound bucket rather than the lower tail.
+            left = bisect_left(locations, cdf_location)
+            if left < len(locations) and locations[left] == cdf_location:
+                return cdf_location_to_percentile_mapping[left][1]
+        epsilon = 1e-10
+        if index == 0 and locations[0] - cdf_location <= epsilon:
+            return cdf_location_to_percentile_mapping[0][1]
+        if index == len(locations) and cdf_location - locations[-1] <= epsilon:
+            return cdf_location_to_percentile_mapping[-1][1]
+        if index == 0 or index == len(locations):
+            raise ValueError("CDF_INTERPOLATION_LOCATION_OUTSIDE_SUPPORT")
+        previous = cdf_location_to_percentile_mapping[index - 1]
+        current = cdf_location_to_percentile_mapping[index]
+        # bisect_right guarantees current.x > location >= previous.x.
+        return previous[1] + (current[1] - previous[1]) * (
+            (cdf_location - previous[0]) / (current[0] - previous[0])
+        )
 
     def _standardize_cdf(self, cdf: list[float] | np.ndarray) -> list[float]:
         """
@@ -554,6 +581,8 @@ class NumericDistribution(BaseModel):
         scale_lower_to = 0 if lower_open else cdf[0]
         scale_upper_to = 1.0 if upper_open else cdf[-1]
         rescaled_inbound_mass = scale_upper_to - scale_lower_to
+        if not math.isfinite(rescaled_inbound_mass) or rescaled_inbound_mass <= 0:
+            raise ValueError("POSITIVE_FINITE_INBOUND_MASS_REQUIRED")
 
         def apply_minimum(F: float, location: float) -> float:
             # `F` is the height of the cdf at `location` (in range [0, 1])

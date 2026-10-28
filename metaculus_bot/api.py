@@ -124,9 +124,17 @@ class Metaculus:
         # Leaderboard/prize exclusion does not revoke forecast permission.
         # Include live tournaments/indexes and bot-oriented question series.
         unique = {}
+        catalog = {}
         for project in projects:
-            if eligible_project(project, now) and project.get("user_permission") in PERMISSIONS:
+            status = project_discovery_status(project, now)
+            catalog[project["id"]] = {key: project.get(key) for key in (
+                "id", "name", "slug", "type", "start_date", "close_date",
+                "forecasting_end_date", "is_ongoing", "bot_leaderboard_status",
+                "user_permission", "prize_pool")}
+            catalog[project["id"]]["discovery_status"] = status
+            if status == "eligible":
                 unique[project["id"]] = project
+        self.project_catalog = list(catalog.values())
         return list(unique.values())
 
     def posts(self, tournament) -> list[dict]:
@@ -182,6 +190,25 @@ def eligible_project(project: dict, now=None) -> bool:
              or project.get("slug") in BOT_FRIENDLY_SLUGS
              or (project.get("slug") or "").startswith("metaculus-cup-"))
             and project.get("is_ongoing") and (not start or start <= now) and (not end or end > now))
+
+
+def project_discovery_status(project: dict, now=None) -> str:
+    """Expose why a newly listed tournament cannot yet be forecast by this bot."""
+    now = now or utcnow()
+    try:
+        start = date(project.get("start_date"))
+        end = date(project.get("forecasting_end_date") or project.get("close_date"))
+        if start and start > now:
+            return "upcoming"
+        if end and end <= now:
+            return "closed"
+        if not project.get("is_ongoing"):
+            return "not_ongoing"
+        if project.get("user_permission") not in PERMISSIONS:
+            return "forecast_permission_missing"
+        return "eligible" if eligible_project(project, now) else "bot_policy_unavailable"
+    except (TypeError, ValueError, OverflowError):
+        return "invalid_project_metadata"
 
 
 def post_projects(post: dict) -> list[dict]:

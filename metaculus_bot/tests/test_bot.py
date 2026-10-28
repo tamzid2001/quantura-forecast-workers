@@ -232,6 +232,65 @@ def test_all_competitions_permission_and_deadline_filter():
           {**base,'id':3,'user_permission':'viewer'},{**base,'id':4,'forecasting_end_date':'2026-09-01T00:00:00Z'}]
     api.get=lambda path:rows if path=='projects/tournaments/' else [base]
     assert [p['id'] for p in api.competitions(now)]==[1,2]
+    assert len(api.project_catalog)==4
+    assert {p['id']:p['discovery_status'] for p in api.project_catalog} == {
+        1:'eligible', 2:'eligible', 3:'forecast_permission_missing', 4:'closed'}
+
+
+def test_catalog_explains_upcoming_and_unknown_policy_without_override():
+    from metaculus_bot.api import project_discovery_status
+    now = datetime(2026, 10, 28, tzinfo=timezone.utc)
+    base = {'is_ongoing': True, 'user_permission':'forecaster', 'bot_leaderboard_status':'bots_only'}
+    assert project_discovery_status({**base,'start_date':'2026-11-02'},now)=='upcoming'
+    assert project_discovery_status({**base,'bot_leaderboard_status':'unknown'},now)=='bot_policy_unavailable'
+    assert project_discovery_status({**base,'start_date':'invalid'},now)=='invalid_project_metadata'
+
+
+def test_minibench_priority_does_not_depend_on_prize_metadata():
+    from metaculus_bot.runner import competition_priorities
+    projects=[{'id':1,'name':'MiniBench','bot_leaderboard_status':'bots_only'}]
+    assert competition_priorities(projects)=={1:0}
+
+
+def test_distribution_arithmetic_fault_does_not_abort_next_question(posts,monkeypatch,tmp_path):
+    from metaculus_bot import runner
+    first=next(copy.deepcopy(p) for p in posts if p.get('question',{}).get('type')=='binary')
+    second=copy.deepcopy(first);second['id']+=1000;second['question']['id']+=1000
+    first_id=first['question']['id']
+    real_payload=runner.payload
+    def validate(q,answer):
+        if q.id_of_question==first_id:
+            raise ZeroDivisionError('private diagnostic is not a public log')
+        return real_payload(q,answer)
+    monkeypatch.setattr(runner,'payload',validate)
+    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setenv('METACULUS_TOKEN','test-token')
+    api=SimpleNamespace(identity=lambda:{'id':1,'username':'test'},posts=lambda p:[first,second],
+                        own_forecasts=lambda ids:set(),comments=lambda *a:[])
+    class Llm:
+        def __init__(self,key):pass
+        def forecast(self,q,sources):return {'probability_yes':.4,'reasoning':'Fixture only'}
+    args=SimpleNamespace(scope='test',engine='llm',submit=False,max_questions=2,question_ids=[],
+                         checkpoint=str(tmp_path/'checkpoint.enc'),report=str(tmp_path/'summary.json'))
+    result=run(args,api,Llm)
+    assert result['counts']=={'unusable_generation_not_submitted':1,'validated_not_submitted':1}
+    saved=Checkpoint(args.checkpoint,'test-token').get(first_id)
+    assert saved['unusable_response']['validation_error_type']=='ZeroDivisionError'
+
+
+@pytest.mark.parametrize('kind',['numeric','date','discrete'])
+def test_payload_accepts_tied_quantiles_at_large_lower_bound(posts,kind):
+    q=one(posts,kind)
+    lower=1_700_000_000.0
+    q.lower_bound=datetime.fromtimestamp(lower,timezone.utc) if kind=='date' else lower
+    q.upper_bound=datetime.fromtimestamp(lower+100,timezone.utc) if kind=='date' else lower+100
+    q.open_lower_bound=True;q.open_upper_bound=True;q.zero_point=None
+    values=[lower,lower,lower,lower+25,lower+50,lower+75,lower+100]
+    points=[{'percentile':p,'value':datetime.fromtimestamp(v,timezone.utc).isoformat() if kind=='date' else v}
+            for p,v in zip([.01,.1,.25,.5,.75,.9,.99],values)]
+    cdf=payload(q,{'percentiles':points})['continuous_cdf']
+    assert len(cdf)==q.cdf_size
+    assert all(0<=a<=b<=1 for a,b in zip(cdf,cdf[1:]))
 
 
 def test_posts_are_paginated():
@@ -480,8 +539,8 @@ def test_prize_priority_protects_minibench_and_futureeval_free_capacity():
     memberships={1:{4},2:{3},3:{1},4:{2},5:{3,4}}
     ordered=question_order(questions,memberships,set(),set(),now,priorities=ranks)
     assert [q.id_of_question for q in ordered]==[3,4,2,5,1]
-    # Persisted exact generations still recover first, regardless of tournament.
-    assert question_order(questions,memberships,set(),{1},now,priorities=ranks)[0].id_of_question==1
+    # A saved practice answer cannot starve a short-lived MiniBench question.
+    assert question_order(questions,memberships,set(),{1},now,priorities=ranks)[0].id_of_question==3
 
 
 def test_new_forecasts_each_have_private_reasoning_and_tournament_receipts(posts,monkeypatch,tmp_path):

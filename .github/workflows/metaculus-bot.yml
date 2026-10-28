@@ -74,6 +74,30 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Measure numeric conversion and worker recovery coverage
+        run: python -m pytest -q metaculus_bot/tests --cov=metaculus_bot.api --cov=metaculus_bot.runner --cov=metaculus_bot.minibench --cov=metaculus_bot.sdk.numeric_report --cov-branch --cov-report=term --cov-report=xml:artifacts/metaculus-reliability-coverage.xml
+      - name: Validate reliability coverage artifact and thresholds
+        run: |
+          python - <<'PYCODE'
+          import pathlib, xml.etree.ElementTree as ET
+          root = ET.parse('artifacts/metaculus-reliability-coverage.xml').getroot()
+          expected = {'api.py', 'runner.py', 'minibench.py', 'numeric_report.py'}
+          assert root.tag == 'coverage'
+          assert {pathlib.Path(c.attrib['filename']).name for c in root.findall('.//class')} == expected
+          assert int(root.attrib['lines-covered']) > 0
+          assert float(root.attrib['line-rate']) >= .80
+          assert int(root.attrib['branches-valid']) > 0 and float(root.attrib['branch-rate']) >= .70
+          print(f"Reliability line coverage: {float(root.attrib['line-rate']):.2%}; branch coverage: {float(root.attrib['branch-rate']):.2%}")
+          PYCODE
+      - name: Persist real worker reliability coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: metaculus-reliability-coverage-${{ github.run_id }}
+          path: artifacts/metaculus-reliability-coverage.xml
+          if-no-files-found: error
+          retention-days: 30
+
   discover:
     needs: validate
     if: ${{ github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || vars.METACULUS_BOT_ENABLED == 'true') }}

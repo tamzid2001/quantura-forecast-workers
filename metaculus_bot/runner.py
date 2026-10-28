@@ -103,13 +103,13 @@ def competition_priorities(projects):
         policy = competition_policy(project)
         prize = policy["bot_prize_eligibility"] == "subject_to_tournament_rules"
         name = (str(project.get("slug", "")) + " " + str(project.get("name", ""))).lower()
-        result[project["id"]] = (0 if prize and is_minibench(project) else
+        result[project["id"]] = (0 if is_minibench(project) else
                                  1 if prize and "futureeval" in name else 2 if prize else 3)
     return result
 
 
 def question_order(questions, memberships, handled, replay, now=None, priorities=None):
-    """Recover exact answers first; protect short deadlines; balance the backlog.
+    """Protect priority rounds; recover exact answers within each priority tier.
 
     Selection depends on coverage and closing times, never forecast probabilities
     or scores. A question shared by multiple tournaments is processed once.
@@ -145,7 +145,10 @@ def question_order(questions, memberships, handled, replay, now=None, priorities
         selected.add(q.id_of_question)
         coverage.update(memberships[q.id_of_question])
         balanced.append(q)
-    return first + sorted(urgent + balanced, key=priority) + [q for q in ordered if q.id_of_question not in selected]
+    # A saved practice forecast must not consume the only short MiniBench
+    # window. Within a tournament priority, recover exact saved answers first.
+    return sorted(first + urgent + balanced, key=priority) + [
+        q for q in ordered if q.id_of_question not in selected]
 
 
 def submit(api, question, record):
@@ -287,6 +290,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
         result = {"bot": identity["username"], "bot_id": identity["id"], "at": utcnow().isoformat(),
                   "free_only": True, "discovered_open_questions": len(questions),
                   "counts": {"queued": len(queue), "already_submitted": len(own)}, "competitions": coverage,
+                  "project_catalog": getattr(api, "project_catalog", []),
                   "forecast_lifetimes": forecast_lifetimes(api),
                   "questions": [{"question_id": q.id_of_question, "post_id": q.id_of_post,
                                  "close_time": q.close_time.isoformat() if q.close_time else None,
@@ -382,7 +386,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
                 stage = "distribution_validation"
                 try:
                     payload(q, record["answer"])
-                except (ValueError, KeyError, TypeError) as error:
+                except (ValueError, KeyError, TypeError, ArithmeticError) as error:
                     # Keep the exact accepted output for audit, but stop
                     # retrying an impossible submission on every cron tick.
                     # This never requests a replacement model answer.
@@ -459,7 +463,7 @@ def run(args, api=None, llm_factory=free_llm_factory):
                 status="deferred_until_next_capacity_window")
             time_series_ids = []
             break
-        except (ApiError, ValueError, KeyError, TypeError, RuntimeError) as error:
+        except (ApiError, ValueError, KeyError, TypeError, RuntimeError, ArithmeticError) as error:
             if isinstance(error, ApiError) and error.service.startswith("METACULUS") and error.status in {401, 403}:
                 # A permission denial stops the entire batch, not just this
                 # question. Repeated writes to a restricted account add no value.
