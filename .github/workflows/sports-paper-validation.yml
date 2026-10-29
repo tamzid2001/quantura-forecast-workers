@@ -1,0 +1,55 @@
+name: Sports paper — rule and checkpoint validation
+on:
+  pull_request:
+    paths:
+      - market_research/game_p01_*.py
+      - market_research/sports_research/**
+      - market_research/tests/test_game_p01_*.py
+      - market_research/tests/test_sports_research*.py
+      - .github/workflows/sports-paper-validation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install CPU-only validation tools
+        run: python -m pip install --no-cache-dir pytest==9.1.1 pytest-cov==7.1.0 coverage==7.17.0 httpx==0.28.1 numpy==2.5.4 pandas==3.1.0 pydantic==2.12.3 requests==2.33.0
+      - name: Test selection, recovery, accounting and frozen research compatibility
+        run: |
+          env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT python -m pytest -q \
+            market_research/tests/test_game_p01_hourly_comparison.py \
+            market_research/tests/test_game_p01_paper.py \
+            market_research/tests/test_game_p01_snapshot_limits.py \
+            market_research/tests/test_game_p01_month.py \
+            market_research/tests/test_sports_research.py \
+            market_research/tests/test_sports_research_p99.py \
+            --cov=market_research.game_p01_hourly_comparison --cov-branch --cov-fail-under=90 \
+            --cov-report=term-missing --cov-report=xml:artifacts/hourly-paper-coverage.xml
+      - name: Validate executed first-party Cobertura evidence
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          report = ET.parse('artifacts/hourly-paper-coverage.xml').getroot()
+          classes = report.findall('.//class')
+          assert classes and all(c.attrib['filename'].endswith('game_p01_hourly_comparison.py') for c in classes)
+          assert any(int(line.attrib['hits']) > 0 for line in report.findall('.//line'))
+          assert float(report.attrib['line-rate']) >= .90
+          assert float(report.attrib['branch-rate']) >= .70
+          print('Line coverage:', report.attrib['line-rate'], 'branch coverage:', report.attrib['branch-rate'])
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: sports-hourly-paper-coverage
+          path: artifacts/hourly-paper-coverage.xml
+          if-no-files-found: error
+          retention-days: 30

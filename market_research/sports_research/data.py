@@ -15,7 +15,8 @@ WITHIN = "p01_hour_within_10c_v1"
 OUTSIDE = "p01_hour_outside_10c_opposite_v1"
 LIMIT = "games_p01_ask_minus_1c_band_10c_v1"
 P99 = "p99_hour_above_opposite_v1"
-STRATEGIES = {WITHIN, OUTSIDE, LIMIT, P99}
+TIGHT = "p01_hour_within_2c_first_choice_v1"
+STRATEGIES = {WITHIN, OUTSIDE, LIMIT, P99, TIGHT}
 MAX_INPUT_BYTES = 32 * 1024 * 1024
 MAX_ROWS = 100_000
 

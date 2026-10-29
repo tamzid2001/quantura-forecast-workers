@@ -5,7 +5,7 @@
     ".github/workflows/backend-schedules.yml": "05cbd9272bdc24c238156fb829364d02b8c202c5df76e0f2be6d4fb03bb12b47",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
     ".github/workflows/games-p01-limit-paper.yml": "1bead2d892f758a4284961c24106a9a1c908f793b1bf6e182c3d9898a2cfca6a",
-    ".github/workflows/games-p01-paper.yml": "c5274a10f8aeb9801efaa137d695f2b2d359b8231f18ca9180493bcd6ef465ea",
+    ".github/workflows/games-p01-paper.yml": "18a86cfeac15d9b0b1cb32d76128754e28608dc509b6953da8c1117af997aff3",
     ".github/workflows/homepage-stock-screener.yml": "a2081316bc3ced231e6267edf77909cac13d0d26c926a36c4618eb4f62a4b949",
     ".github/workflows/hourly-game-screener.yml": "f465169d750499f658d2ae06b636cbcd57491ca69d91e1ac98e92ab5de4ceb51",
     ".github/workflows/hourly-perpetual-screener.yml": "b5a7609cb9c184e5cee0f26947075db064cf70971117d28f2d48a69fde44700e",
@@ -26,7 +26,7 @@
     ".pytest_cache/v/cache/nodeids": "470c93b6dd8b5cb78a227d153ab5ed3aaaf13c41cdbb657ee0c4272ec6f7bcfb",
     "CHANGELOG.md": "531130ce7c506d941afa50c8e527bfc8aed80b5cca8ea30c8649d0550b882c27",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
-    "README.md": "c6c52738c57ad1fc1f05fe0107a0e280c957459023f44ae674494d34ed6df749",
+    "README.md": "ad6f0919aa0c4be6c6a7576930b3d36c5aebb1be18e729e7c7e7fa8103471bd2",
     "artifacts/metaculus-coverage.xml": "bed008a1b40e9979e74b3c1a75f46f22179905637814fb53e48f5d7de820b89f",
     "docs/PRIVACY.md": "d5263faf10a694a4a20e35e0e6ecef8b0cbc17eb4738ddfbf3ecc74880b97a5e",
     "docs/RDMA_ASSESSMENT.md": "f10913fb76e53933b7c461c3f71a6592e0e918c082e9f9c2989243ad89ba8fbb",
@@ -63,11 +63,11 @@
     "market_research/engine.py": "201f12b4adb1faf6377e92662c013a9fed0c0979cfa84a225ec3c40b1b13bf3c",
     "market_research/forecast.py": "8c717b6ea955e00ad775044b5fb0c8fb643a8afdf3531b9e22c2aafa30666ac1",
     "market_research/game_p01_books.py": "cac1af57ff6f2889085cdcbcc1fb62f2e89d90fc2187f635ea1d1e6439acec98",
-    "market_research/game_p01_hourly_comparison.py": "b526e4a6817dcd47e9fb7e9de6ee5cf95697f3589c744f913d16aa09446532b1",
+    "market_research/game_p01_hourly_comparison.py": "3448de3fce743f4e0e13c2c9979108a712cc3f57de590c4768042bb27e2e33dd",
     "market_research/game_p01_limit.py": "4020d2852b14f0a390a2df5a780529e562e2932c75ea83b51796927cab6487d6",
     "market_research/game_p01_limit_worker.py": "f3d49635b83d21615e9cae8dd955d73fb2fff3ba4a19b26e1d6ca6a9541ad4c5",
     "market_research/game_p01_month.py": "0205e49f079f591d6f2bc8f4b32df2cd069078ec9b459918b6e06eb775641bf4",
-    "market_research/game_p01_paper.py": "f1ed2908e0021f193144409c26e3e47a422808e16252f140c5ed182cf484a93e",
+    "market_research/game_p01_paper.py": "60a816bc56ac1f74a3e33c7f6e299e215715b38760adfb7271167658245e59a5",
     "market_research/game_p01_portfolio.py": "f7e6e576818c0841a5dbc2a5a662a502f44830e2adace4fe20b038764abb3e6a",
     "market_research/pregame_screener.py": "80bb4f68b33fe795721ddbc8056b53dde2ca72047b7d1cbe825f087599f991ba",
     "market_research/provider.py": "4472b478aec2f0be5cb67e894649fa73d2fc54863e73dfa43fe00691c2fa5182",
@@ -133,7 +133,17 @@
     "scripts/run_backend_schedules.py": "6f15b8fd586bfd67ddf57495204f7077fc7280fd56ce5684cb5298368c93d1a3",
     "scripts/screener_schedule.py": "bbd2bff972e863ad6040ebd00fce442f48486b0406d3270273619bdff254640e",
     "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859",
-    "metaculus_bot/tests/test_numeric_reliability.py": "efd5fb9e5010780a41836d6e3fc2db6147e8f5d1ca5f14893c7622b39cdc4863"
+    "metaculus_bot/tests/test_numeric_reliability.py": "efd5fb9e5010780a41836d6e3fc2db6147e8f5d1ca5f14893c7622b39cdc4863",
+    "market_research/sports_research/data.py": "c06a7a065bda2f7afc3fe7ed2d2a56204371000d805656de91e8b018ffc176b5",
+    "docs/games-p01-paper.md": "ea4a350047de8a15f9e914e3065c5bace4a4bb604f701225d4632f549f1ceb0d",
+    "docs/sports-paper-snapshot-recovery.md": "8935f95e4149f4359a8e5b311fc594631e41e4e83cd0d84c68560ed716843db8",
+    "market_research/tests/test_game_p01_hourly_comparison.py": "c6c460e620f7cf71c2b3c96fb33dae83d4f822f9e78b7d496497758d4089fdbb",
+    "market_research/tests/test_game_p01_paper.py": "6d82e22f4ec9b4ee3bf637d023c8b481e37766a7b971b8965dcda8cf0f569eb5",
+    "market_research/tests/test_game_p01_snapshot_limits.py": "1c117419c67c0213beccba2920553bb8fb07451c2e4926754e7404be5ae42dd8",
+    "market_research/tests/test_game_p01_month.py": "2f0b51a097353d6fd286d5fd7a380f44b802e2ebec5f7d404c672d5d610fb261",
+    "market_research/tests/test_sports_research.py": "6f39279547b613c62daad36c21efe702ac02ace94498775f6a655b1672501bb1",
+    "market_research/tests/test_sports_research_p99.py": "b08029acf45f2898bba5d864596ae4ca79e68ba95ab75d0376ed2549a7eed21d",
+    ".github/workflows/sports-paper-validation.yml": "c2598229242e5858d9e589d6be5f233a3ed203fbef396826dd23059959eb2647"
   },
   "component_sources": {
     "metaculus_bot": {
@@ -152,6 +162,7 @@
         ".github/workflows/metaculus-bot.yml"
       ],
       "scope": "incremental reliability patch; other runtime components retain the full-export source commit"
-    }
+    },
+    "sports_paper": "5c407108629bb0bf3394dec81b9e578a35df4fcd"
   }
 }

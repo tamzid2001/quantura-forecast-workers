@@ -28,7 +28,7 @@ jobs:
           python-version: '3.12'
       - name: Replay recorded asks and reconcile official settlements (paper only)
         run: python -m market_research.game_p01_paper --output "$RUNNER_TEMP/games-paper"
-      - name: Show the within and outside 10c paper comparison
+      - name: Show the 2c first-choice and within/outside 10c paper comparison
         if: always()
         run: |
           if [ -f "$RUNNER_TEMP/games-paper/comparison-summary.md" ]; then
