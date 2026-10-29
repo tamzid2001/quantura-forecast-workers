@@ -28,7 +28,8 @@ import zipfile
 
 from .sports_research.features import FIELDS as RESEARCH_FIELDS, capture as capture_research_features
 from .game_p01_portfolio import BASELINE, SHALLOW, amount, fill, performance, sample_equity, select
-from .game_p01_hourly_comparison import HOURLY_RULES, comparison_markdown, ensure_portfolios, fill_hourly, select_hourly
+from .game_p01_hourly_comparison import (FORWARD_HOURLY_RULES, HOURLY_RULES, TIGHT, WITHIN,
+    comparison_markdown, ensure_portfolios, fill_hourly, follow_tight, select_hourly)
 
 REPO = "tamzid2001/quantura-forecast-workers"
 ARTIFACT = "quantura-games-p01-paper-v1"
@@ -40,7 +41,7 @@ POLY = "https://gateway.polymarket.us"
 MAX_BYTES = 32*1024*1024
 # Full seven-model screener snapshots can expand past the checkpoint/provider cap.
 # This separate ceiling remains bounded; checkpoints and HTTP responses retain 32 MiB.
-MAX_SNAPSHOT_BYTES = 64*1024*1024
+MAX_SNAPSHOT_BYTES = 128*1024*1024
 try:
     import certifi
     TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
@@ -141,8 +142,8 @@ def fresh_state(now):
 def validate_state(state):
     if state.get("schema") != 1 or state.get("mode") != "paper_only":
         raise ValueError("INVALID_PAPER_CHECKPOINT")
-    for rule in (BASELINE, SHALLOW, *HOURLY_RULES):
-        if rule in HOURLY_RULES and rule.name not in state["portfolios"]:
+    for rule in (BASELINE, SHALLOW, *FORWARD_HOURLY_RULES):
+        if rule in FORWARD_HOURLY_RULES and rule.name not in state["portfolios"]:
             continue  # Old artifacts are upgraded only after validation.
         portfolio = state["portfolios"][rule.name]
         if portfolio["rules_hash"] != rule.fingerprint():
@@ -150,12 +151,22 @@ def validate_state(state):
         performance(portfolio["trades"])
         if any(t["mode"] != "paper_only" or t["rules_hash"] != rule.fingerprint() for t in portfolio["trades"]):
             raise ValueError("INVALID_PAPER_LEDGER")
-        if rule in HOURLY_RULES:
+        if rule in FORWARD_HOURLY_RULES:
             activation = portfolio["activation_at"]
             if (type(activation) is not int or activation < state["activation_at"]
                     or portfolio["first_signal_at"] != (activation//3600+1)*3600
                     or any(t["signal_at"] < portfolio["first_signal_at"] for t in portfolio["trades"])):
                 raise ValueError("INVALID_COMPARISON_ACTIVATION")
+    if TIGHT.name in state["portfolios"]:
+        parents = {t["fixture_id"]: t for t in state["portfolios"][WITHIN.name]["trades"]}
+        for trade in state["portfolios"][TIGHT.name]["trades"]:
+            parent = parents.get(trade["fixture_id"])
+            money = ("price", "quantity", "entry_cost", "entry_fee", "p01", "signal_ask")
+            identity = ("provider", "symbol", "side", "decision_at", "signal_at", "original_forecast_id")
+            if (parent is None or any(trade[k] != parent[k] for k in identity)
+                    or any(amount(trade[k]) != amount(parent[k]) for k in money)
+                    or not 0 < amount(trade["p01"])-amount(trade["signal_ask"]) <= amount(TIGHT.band)):
+                raise ValueError("INVALID_TIGHT_PARENT_FIRST_CHOICE")
     return state
 
 
@@ -473,7 +484,7 @@ def stats(state, directory):
               "portfolios": {}}
     for name, portfolio in state["portfolios"].items():
         value = {**performance(portfolio["trades"]), "equity": portfolio["equity"]}
-        if name in {r.name for r in HOURLY_RULES}:
+        if name in {r.name for r in FORWARD_HOURLY_RULES}:
             value.update(label=portfolio["label"], activation_at=iso(portfolio["activation_at"]),
                          first_signal_at=iso(portfolio["first_signal_at"]), coverage=portfolio["coverage"],
                          execution="next_recorded_minute_ask_quote_proxy",
@@ -500,7 +511,7 @@ def stats(state, directory):
     comparison = {"mode": "paper_only", "as_of": result["as_of"], "live_orders": 0,
                   "next_hour": result["next_hour"], "last_errors": state.get("last_errors", []),
                   "source_coverage": state["coverage"],
-                  "portfolios": {r.name: result["portfolios"][r.name] for r in HOURLY_RULES}}
+                  "portfolios": {r.name: result["portfolios"][r.name] for r in FORWARD_HOURLY_RULES}}
     (directory/"comparison-stats.json").write_text(json.dumps(comparison, indent=2)+"\n")
     (directory/"comparison-summary.md").write_text(comparison_markdown(comparison))
     fields = ["portfolio", "fixture_id", "provider", "symbol", "event_title", "signal_side", "side",
@@ -533,13 +544,17 @@ def run(directory, now=None):
                 portfolio = state["portfolios"][rule.name]
                 chosen = select(candidates, [t["fixture_id"] for t in portfolio["trades"]], rule)
                 portfolio["trades"] += [fill(c, rule) for c in chosen]
+            parent_choices = []
             for rule in HOURLY_RULES:
                 portfolio = state["portfolios"][rule.name]
                 chosen, skips = select_hourly(candidates, [t["fixture_id"] for t in portfolio["trades"]],
                                               rule, portfolio["first_signal_at"])
                 portfolio["trades"] += [fill_hourly(c, rule) for c in chosen]
+                if rule == WITHIN:
+                    parent_choices = chosen
                 if hour >= portfolio["first_signal_at"]:
                     portfolio["coverage"][str(hour)] = {"selected_entries": len(chosen), "skips": skips}
+            follow_tight(parent_choices, state["portfolios"][TIGHT.name], hour)
             state["coverage"][str(hour)] = {"candidate_outcomes": len(candidates), "skips": dict(counts), "artifact_ids": proof}
             state["next_hour"] += 3600
             save(state, directory)

@@ -28,13 +28,17 @@ class HourlyRules:
 WITHIN = HourlyRules("p01_hour_within_10c_v1", "Within 10c — signaled side")
 OUTSIDE = HourlyRules("p01_hour_outside_10c_opposite_v1", "Outside 10c — opposite side", opposite=True)
 HOURLY_RULES = (WITHIN, OUTSIDE)
+# Keep the retrospective campaign's two rules immutable. This new portfolio
+# follows only the WITHIN parent's first choice; it never searches for a replacement.
+TIGHT = HourlyRules("p01_hour_within_2c_first_choice_v1", "Within 2c — original first choice", band="0.02")
+FORWARD_HOURLY_RULES = (*HOURLY_RULES, TIGHT)
 OPPOSITE = {"yes": "no", "no": "yes", "long": "short", "short": "long"}
 VENUE_SIDES = {"kalshi": {"yes", "no"}, "polymarket_us": {"long", "short"}}
 
 
 def ensure_portfolios(state, now):
     """Upgrade old checkpoints without reclassifying their historical entries."""
-    for rule in HOURLY_RULES:
+    for rule in FORWARD_HOURLY_RULES:
         state["portfolios"].setdefault(rule.name, {
             "rules_hash": rule.fingerprint(), "activation_at": int(now),
             "first_signal_at": (int(now)//3600+1)*3600,
@@ -110,10 +114,26 @@ def fill_hourly(candidate, rule):
             "accounting": "recorded_ask_quote_proxy_no_depth_or_slippage", "mode": "paper_only"}
 
 
+def follow_tight(parent_choices, portfolio, hour):
+    """Veto the parent's new first choices using the original hourly ask.
+
+    Call only with candidates selected by WITHIN for this hour. A rejected
+    fixture is already owned by that parent's lifetime ledger, so no later
+    hour, alternate venue or proposition can replace its rejected first choice.
+    """
+    chosen, skips = select_hourly(parent_choices, [t["fixture_id"] for t in portfolio["trades"]],
+                                  TIGHT, portfolio["first_signal_at"])
+    portfolio["trades"] += [fill_hourly(c, TIGHT) for c in chosen]
+    if hour >= portfolio["first_signal_at"]:
+        portfolio["coverage"][str(hour)] = {"parent_first_choices": len(parent_choices),
+                                            "selected_entries": len(chosen), "skips": skips}
+
+
 def comparison_markdown(report):
     def number(value, prefix="", suffix=""):
         return "N/A" if value is None else f"{prefix}{value:,.2f}{suffix}"
-    columns = [report["portfolios"][r.name] for r in HOURLY_RULES]
+    rules = [r for r in FORWARD_HOURLY_RULES if r.name in report["portfolios"]]
+    columns = [report["portfolios"][r.name] for r in rules]
     rows = [
         ("Entries / open", lambda s: f"{s['entries']} / {s['open_positions']}"),
         ("Settled W/L", lambda s: f"{s['wins']} / {s['losses']}"),
@@ -133,10 +153,12 @@ def comparison_markdown(report):
         ("First eligible signal (UTC)", lambda s: s["first_signal_at"]),
     ]
     lines = ["# Hourly sports P01 paper comparison", "", f"As of {report['as_of']}", "",
-             "| Metric | Within 10c: signaled side | Outside 10c: opposite side |", "| --- | ---: | ---: |"]
+             "| Metric | "+" | ".join(r.label.replace(" — ", ": ") for r in rules)+" |",
+             "| --- | "+" | ".join("---:" for _ in rules)+" |"]
     lines += ["| "+label+" | "+" | ".join(formatter(s) for s in columns)+" |" for label, formatter in rows]
     lines += ["", "Both use published optimized seven-model forecasts, $1 principal plus modeled fees, provider quantity increments and one lifetime position per game in each portfolio.",
               "", "Next-minute ask quote proxies; not exchange fills or the separate ask-minus-1c limit study. Drawdown is sampled/realized, not continuous. Recorded funding is not a recommended deposit. Retrospective results were not imported.",
+              "", "Within 2c follows the within-10c portfolio's first selected game trade, accepting only 0 < hourly P01 minus hourly ask <= 0.02. Rejected games have no replacement entry. Its own future activation excludes historical trades.",
               "", f"Source errors: {len(report['last_errors'])}. Next unprocessed hour: {report['next_hour']}.",
               "", "Download comparison-stats.json and comparison-ledger.csv in the quantura-games-p01-paper-stats artifact for venue breakdowns, signal provenance and full coverage.", ""]
     return "\n".join(lines)

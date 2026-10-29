@@ -22,3 +22,7 @@ The approved Quantura Metaculus bot polls eligible competitions every 15 minutes
 [Terms of use](docs/TERMS_OF_USE.md) · [Privacy](docs/PRIVACY.md) · [Rights and licensing](docs/RIGHTS.md) · [RDMA applicability](docs/RDMA_ASSESSMENT.md).
 
 FRED economic evidence is available to the existing Metaculus worker via the server-only `FRED_API_KEY` Actions secret. It provides reviewed native-unit history and bounded research context, without changing submission or comment controls.
+
+## Within-two-cent first-choice paper tracking
+
+The separate `p01_hour_within_2c_first_choice_v1` portfolio follows the within-ten-cent parent's first game choice only when its original completed-hour ask is strictly below that hour's P01 by at most $0.02. Rejected games cannot enter via another venue, proposition or later hour. It starts at its own next future full hour, uses up to $1 principal plus modeled fees and holds to confirmed settlement. Existing rule hashes and ledgers are preserved. [Rules and accounting](docs/games-p01-paper.md). Expanded screener snapshots have a 128 MiB ceiling; durable checkpoint/provider bounds remain 32 MiB.
