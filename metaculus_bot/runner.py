@@ -85,6 +85,9 @@ def record_text(record: dict) -> str:
     urls = list(dict.fromkeys(s["url"] for s in answer.get("sources", []) if isinstance(s.get("url"), str) and len(s["url"]) <= 300))[:3]
     sources = "\n\nSources: " + "; ".join(urls) if urls else ""
     note = {"question_id": record["question_id"], "answer_sha256": answer_hash(record)}
+    service = answer.get('provider_service')
+    if service in {'NVIDIA_BUILD', 'OPENROUTER', 'VERCEL_GATEWAY'} and answer.get('model'):
+        note.update(model=str(answer['model'])[:120], provider_service=service, free_endpoint_policy=True)
     return (f"Automated forecast ({models}).\n\n"
             f"{concise_reasoning(answer.get('reasoning') or answer.get('reason', ''))}{sources}\n\n"
             f"<!-- {NOTE_MARKER} {json.dumps(note, sort_keys=True, separators=(',', ':'))} -->")

@@ -8,8 +8,10 @@ import json
 import os
 from datetime import timedelta
 from pathlib import Path
+import re
 
 from .api import Metaculus, date, utcnow
+from .checkpoint import Checkpoint
 from .sdk.client import MetaculusClient
 from .sdk.questions import ConditionalQuestion
 
@@ -25,7 +27,7 @@ def all_questions(post):
     return result
 
 
-def audit(api, now=None):
+def audit(api, now=None, checkpoint=None):
     now = now or utcnow()
     identity = api.identity()
     if str(identity["id"]) != os.environ.get("METACULUS_BOT_ID"):
@@ -39,6 +41,9 @@ def audit(api, now=None):
     recent = started[:2] + upcoming[-2:]
     report = {"at": now.isoformat(), "bot_id": identity["id"], "live_submissions": 0,
               "catalog": [{key: p.get(key) for key in FIELDS} for p in recent], "rounds": []}
+    # Comments stay private. Export only question IDs/counts, never note text,
+    # probabilities, source excerpts or the account's private reasoning.
+    comments = api.comments(None, identity['id'])
     if upcoming:
         next_round = min(upcoming, key=lambda p: date(p["start_date"]))
         report["next_round"] = {"id": next_round["id"], "start_date": next_round["start_date"],
@@ -73,12 +78,14 @@ def audit(api, now=None):
                 failures += 1
         own = api.own_forecasts(list(questions))
         counts = Counter()
+        missed = []
         urgent = []
         for q in questions.values():
             if q.id_of_question in own:
                 counts["submitted"] += 1
             elif q.close_time and q.close_time <= now:
                 counts["closed_without_forecast"] += 1
+                missed.append(q.id_of_question)
             elif q.open_time and q.open_time > now:
                 counts["upcoming"] += 1
             elif str(q.state.value) == "open":
@@ -87,18 +94,63 @@ def audit(api, now=None):
                     urgent.append(q.id_of_question)
             else:
                 counts["other_unsubmitted"] += 1
+        own_ids = own & questions.keys()
+        notes = private_reasoning_coverage(comments, identity['id'], own_ids)
         report["rounds"].append({"id": project["id"], "name": project.get("name"),
             "total_questions": len(questions), "parse_failures": failures, "counts": dict(counts),
+            "submitted_question_ids": sorted(own_ids),
+            "closed_without_forecast_question_ids": sorted(missed),
+            "missed_question_diagnostics": [pending_diagnostic(i, checkpoint) for i in sorted(missed)],
+            "private_reasoning": notes,
             "urgent_unsubmitted_question_ids": sorted(urgent),
             "coverage_pct": 100 * len(own & questions.keys()) / len(questions) if questions else None})
     return report
 
 
+def pending_diagnostic(question_id, checkpoint):
+    record = checkpoint.get(question_id) if checkpoint else None
+    answer = (record or {}).get('answer', {})
+    code = answer.get('generation_error') or ''
+    return {'question_id': question_id, 'saved_generation_available': bool(record),
+            'abstained': bool(answer.get('abstain')),
+            'generation_error': code if isinstance(code, str) and re.fullmatch(r'[A-Z0-9_]{1,100}', code) else None,
+            'private_note_write_state': (record or {}).get('note_write_state')}
+
+
+def private_reasoning_coverage(comments, author_id, question_ids):
+    verified, attested = set(), set()
+    for comment in comments:
+        if comment.get('is_private') is not True or (comment.get('author') or {}).get('id') != author_id:
+            continue
+        text = comment.get('text') or ''
+        match = re.search(r'<!-- QUANTURA_BOT_NOTE_V2 (\{[^\n]*\}) -->', text)
+        if not match or not text.startswith('Automated forecast ('):
+            continue
+        try:
+            note = json.loads(match[1])
+        except (ValueError, TypeError):
+            continue
+        qid = note.get('question_id')
+        reasoning = text.split('\n\n', 1)[-1].split('<!--', 1)[0].strip()
+        if qid not in question_ids or not reasoning or not re.fullmatch(r'[a-f0-9]{64}', note.get('answer_sha256', '')):
+            continue
+        verified.add(qid)
+        if note.get('free_endpoint_policy') is True and note.get('provider_service') and note.get('model'):
+            attested.add(qid)
+    return {'submitted_with_private_reasoning': len(verified),
+            'submitted_missing_verified_private_reasoning_question_ids': sorted(set(question_ids)-verified),
+            'free_endpoint_attested': len(attested),
+            'legacy_free_endpoint_metadata_unavailable': len(verified-attested)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=Path("artifacts/metaculus-minibench.json"))
+    parser.add_argument('--checkpoint', type=Path, help='Optional encrypted worker checkpoint for read-only failure diagnostics')
     args = parser.parse_args()
-    result = audit(Metaculus(os.environ["METACULUS_TOKEN"]))
+    api = Metaculus(os.environ['METACULUS_TOKEN'])
+    result = (audit(api, checkpoint=Checkpoint(args.checkpoint, os.environ['METACULUS_TOKEN']))
+              if args.checkpoint else audit(api))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=2) + "\n")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
@@ -111,6 +163,11 @@ def main():
                               f"{counts.get('closed_without_forecast', 0)} | {counts.get('open_unsubmitted', 0)}\n")
     print(json.dumps({"event": "metaculus_minibench_coverage", **result}))
     for row in result["rounds"]:
+        if row.get('closed_without_forecast_question_ids'):
+            print('::warning::MiniBench round '+str(row['id'])+' has '+str(len(row['closed_without_forecast_question_ids']))+' closed questions without a forecast.')
+        missing = row.get('private_reasoning', {}).get('submitted_missing_verified_private_reasoning_question_ids', [])
+        if missing:
+            print('::warning::MiniBench round '+str(row['id'])+' has '+str(len(missing))+' submitted forecasts without a verified private reasoning comment.')
         if row["urgent_unsubmitted_question_ids"]:
             print("::warning::MiniBench has " + str(len(row["urgent_unsubmitted_question_ids"])) +
                   " unanswered questions closing within 45 minutes; inspect the forecast worker now.")

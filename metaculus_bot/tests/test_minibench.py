@@ -17,6 +17,7 @@ def test_round_coverage_counts_closed_misses_and_deduplicates_questions(monkeypa
     calls = []
     class API:
         def identity(self): return {'id': 310211}
+        def comments(self, *args): return []
         def get(self, path, **kwargs):
             calls.append((path, kwargs))
             if path == 'projects/minibenches/':
@@ -57,6 +58,7 @@ def test_published_next_round_and_urgent_open_question(monkeypatch):
     monkeypatch.setattr(minibench,'all_questions',lambda p:[q])
     class API:
         def identity(self):return {'id':310211}
+        def comments(self,*args):return []
         def own_forecasts(self,ids):return set()
         def get(self,path,**kwargs):
             if path=='projects/minibenches/':
