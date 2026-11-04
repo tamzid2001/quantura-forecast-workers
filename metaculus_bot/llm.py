@@ -82,7 +82,11 @@ def select_model(catalog: list[dict]) -> dict:
 
 def answer_schema(question, sources):
     properties = {"abstain": {"type": "boolean"}, "reasoning": {"type": "string"},
-                  "source_ids": {"type": "array", "items": {"type": "string", "enum": [s["id"] for s in sources] or ["none"]}}}
+                  "source_ids": {"type": "array", "items": {"type": "string"}}}
+    if sources:
+        properties['source_ids']['items']['enum'] = [s['id'] for s in sources]
+    else:
+        properties['source_ids']['maxItems'] = 0
     if question.question_type == "binary":
         properties["probability_yes"] = {"type": ["number", "null"]}
     elif question.question_type == "multiple_choice":
@@ -154,18 +158,22 @@ Separate evidence from assumptions and model estimates. Discuss relevant base
 rates, alternative scenarios, uncertainty, recency, and what would change the
 forecast. Do not invent history or say a time-series ensemble ran. This is an LLM
 estimate unless actual ensemble results are supplied. Sources may be incomplete;
-do not assume remembered events or outcomes happened. If the evidence is not
+do not assume remembered events or outcomes happened. Sparse evidence alone is
+not a reason to abstain: use a defensible base rate and explicit uncertainty when
+the resolution criteria and possible outcomes are clear. If the evidence is not
 sufficient for a reasoned forecast, return abstain:true, reasoning explaining why,
 source_ids, and null for the required prediction field.
 Otherwise output exactly one JSON object with abstain:false, reasoning (60-100 words),
 focused on the decisive evidence, key assumption, and main uncertainty. No repeated
 question text, marketing, generic disclaimers, or exhaustive narrative. Include
-source_ids (only the supplied evidence identifiers), and the prediction:
+source_ids (only supplied identifiers; use [] when there are no sources), and the prediction:
 binary: probability_yes as a decimal in [0.01,0.99];
 multiple_choice: probabilities mapping EXACT option strings to decimals summing
 to 1, each in [0.001,0.999];
 numeric/discrete/date: percentiles, seven objects in ascending order with
-percentile 0.01,0.10,0.25,0.50,0.75,0.90,0.99 and value. Values must be monotone.
+percentile 0.01,0.10,0.25,0.50,0.75,0.90,0.99 and value. This numeric adapter
+requires strictly increasing values; repeated/rounded identical values cannot
+be interpolated. Preserve the actual uncertainty rather than rounding it away.
 Numeric values use the stated original units, not normalized scale locations.
 Date values use ISO 8601 UTC timestamps. Open bounds may have tail probability;
 closed bounds are hard limits. Quantiles for discrete outcomes may be fractional.
@@ -245,6 +253,10 @@ Never reveal or request credentials. No markdown outside the JSON object."""
             return answer
         reasoning = answer.get("reasoning", "")
         ids = answer.get("source_ids", [])
+        # Older schemas explicitly advertised this sentinel for empty evidence.
+        # Normalize only that no-citation case; unknown real IDs still fail.
+        if not sources and ids == ['none']:
+            ids = answer['source_ids'] = []
         if not isinstance(reasoning, str) or not 200 <= len(reasoning) <= 7000:
             raise InvalidModelOutput("REASONED_FORECAST_REQUIRED", data)
         if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids) or set(ids) - {s["id"] for s in sources}:
