@@ -80,6 +80,28 @@ def test_missing_approval_or_missing_model_prevents_generation(monkeypatch):
     assert session.posts == []
 
 
+def test_empty_evidence_schema_and_legacy_no_citation_sentinel_agree():
+    schema = llm.answer_schema(question(), [])
+    assert schema['properties']['source_ids']['maxItems'] == 0
+    assert 'enum' not in schema['properties']['source_ids']['items']
+    response = completion()
+    answer = json.loads(response['choices'][0]['message']['content'])
+    answer['source_ids'] = ['none']
+    response['choices'][0]['message']['content'] = json.dumps(answer)
+    result = llm.FreeNvidiaLLM('test-only', Session(response=response)).forecast(question(), [])
+    assert result['source_ids'] == [] and result['probability_yes'] == .5
+
+
+def test_unknown_source_is_never_treated_as_no_citation():
+    response = completion()
+    answer = json.loads(response['choices'][0]['message']['content'])
+    answer['source_ids'] = ['invented-source']
+    response['choices'][0]['message']['content'] = json.dumps(answer)
+    client = llm.FreeNvidiaLLM('test-only', Session(response=response))
+    with pytest.raises(llm.InvalidModelOutput, match='UNVERIFIED_SOURCE_IDS'):
+        client.forecast(question(), [])
+
+
 def test_quota_rejection_falls_back_once_and_keeps_original_question_and_evidence():
     primary = SimpleNamespace(model={"id": "primary:free"}, service="PRIMARY",
                               forecast=Mock(side_effect=llm.FreeQuota("FREE_MODEL_429_DEFERRED")))
