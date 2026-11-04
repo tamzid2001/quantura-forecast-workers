@@ -2,6 +2,9 @@ name: Sports paper — rule and checkpoint validation
 on:
   pull_request:
     paths:
+      - .github/scripts/recover_sports_shard.py
+      - .github/workflows/sports-month-backtest.yml
+      - market_research/tests/test_*recovery.py
       - market_research/game_p01_*.py
       - market_research/sports_research/**
       - market_research/tests/test_game_p01_*.py
@@ -28,6 +31,8 @@ jobs:
           env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT python -m pytest -q \
             market_research/tests/test_game_p01_hourly_comparison.py \
             market_research/tests/test_game_p01_paper.py \
+            market_research/tests/test_paper_recovery.py \
+            market_research/tests/test_sports_checkpoint_recovery.py \
             market_research/tests/test_game_p01_snapshot_limits.py \
             market_research/tests/test_game_p01_month.py \
             market_research/tests/test_sports_research.py \

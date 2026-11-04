@@ -11,6 +11,10 @@ on:
       resume_run_id:
         type: string
         default: ''
+      recovery_sources:
+        type: string
+        default: ''
+        description: 'Operator-reviewed shard-to-run JSON map; requires identical frozen catalog and runtime'
       code_sha:
         type: string
         default: ''
@@ -101,8 +105,26 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - uses: actions/checkout@v6
+        if: inputs.recovery_sources != ''
+        with:
+          ref: ${{ github.sha }}
+          path: operations
+          sparse-checkout: |
+            .github/scripts
+            market_research/sports_month_campaign.json
+          persist-credentials: false
+      - name: Restore explicitly reviewed same-catalog recovery sources
+        if: inputs.recovery_sources != ''
+        env:
+          RECOVERY_SOURCES: ${{ inputs.recovery_sources }}
+        run: >-
+          python operations/.github/scripts/recover_sports_shard.py
+          --sources "$RECOVERY_SOURCES" --resume-run "$RESUME_RUN_ID"
+          --shard "$SHARD" --directory work
+          --campaign operations/market_research/sports_month_campaign.json
       - name: Restore shard checkpoint if this is a continuation
-        if: inputs.resume_run_id != ''
+        if: inputs.resume_run_id != '' && inputs.recovery_sources == ''
         run: |
           artifact="sports-month-shard-$SHARD"
           count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN_ID/artifacts" --jq "[.artifacts[] | select(.name == \"$artifact\" and .expired == false)] | length")
@@ -136,6 +158,13 @@ jobs:
         run: python -m pip install --no-cache-dir --require-hashes -r market_research/requirements.lock
       - name: Forecast and replay with time-bounded inference and durable ledgers
         run: python -m market_research.game_p01_month replay --directory work --shard "$SHARD" --seconds 12000
+      - uses: actions/upload-artifact@v7
+        if: always() && inputs.recovery_sources != ''
+        with:
+          name: sports-month-recovery-${{ matrix.shard }}
+          path: work/recovery-${{ matrix.shard }}.json
+          retention-days: 90
+          if-no-files-found: error
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -198,10 +227,10 @@ jobs:
           retention-days: 90
           if-no-files-found: error
   continue:
-    needs: report
+    needs: [catalog, replay, report]
     # A catalog-only pass deliberately skips replay. Override GitHub's implicit
     # success() check so that skipped ancestor cannot suppress continuation.
-    if: always() && needs.report.result == 'success' && needs.report.outputs.done == 'false' && vars.SPORTS_MONTH_BACKTEST_ENABLED == 'true'
+    if: always() && needs.report.result == 'success' && (needs.replay.result == 'success' || (needs.catalog.outputs.done == 'false' && needs.replay.result == 'skipped')) && needs.report.outputs.done == 'false' && vars.SPORTS_MONTH_BACKTEST_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
