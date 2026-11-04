@@ -110,15 +110,21 @@ def compressed_json(blob, member):
     return json.loads(raw)
 
 
-def artifacts(name):
+def artifacts(name, through=None):
     values = []
-    for page in (1, 2, 3):
+    # Recovery must discover the checkpoint's hour, rather than only the most
+    # recent three pages. Never substitute today's snapshot for a missing hour.
+    for page in range(1, 31 if through is not None else 4):
         result = github("actions/artifacts?"+urlencode({"name": name, "per_page": 100, "page": page}))
         batch = result.get("artifacts", [])
         values += [a for a in batch if not a.get("expired") and a.get("name") == name
                    and a.get("workflow_run", {}).get("head_branch") == "main"]
-        if len(batch) < 100:
+        if len(batch) < 100 or (through is not None and any(
+                stamp(a['created_at']) <= through for a in values)):
             break
+    else:
+        if through is not None:
+            raise RuntimeError('ARTIFACT_DISCOVERY_INCOMPLETE')
     return sorted(values, key=lambda a: (a["created_at"], a["id"]), reverse=True)
 
 
@@ -480,6 +486,7 @@ def stats(state, directory):
     result = {"mode": "paper_only", "activation_at": iso(state["activation_at"]),
               "as_of": iso(state.get("last_run_at", int(time.time()))),
               "next_hour": iso(state["next_hour"]), "coverage": state["coverage"],
+              "catchup_pending": state.get('catchup_pending', False),
               "firestore_writes": 0, "cloud_storage_writes": 0, "live_orders": 0,
               "portfolios": {}}
     for name, portfolio in state["portfolios"].items():
@@ -510,6 +517,7 @@ def stats(state, directory):
         writer.writerows(ledger)
     comparison = {"mode": "paper_only", "as_of": result["as_of"], "live_orders": 0,
                   "next_hour": result["next_hour"], "last_errors": state.get("last_errors", []),
+                  "catchup_pending": result['catchup_pending'],
                   "source_coverage": state["coverage"],
                   "portfolios": {r.name: result["portfolios"][r.name] for r in FORWARD_HOURLY_RULES}}
     (directory/"comparison-stats.json").write_text(json.dumps(comparison, indent=2)+"\n")
@@ -525,18 +533,21 @@ def stats(state, directory):
         writer.writerows(t for t in ledger if t["portfolio"] in comparison["portfolios"])
 
 
-def run(directory, now=None):
+def run(directory, now=None, max_hours=12):
     now = int(time.time()) if now is None else now
     state = restore(now)
     ensure_portfolios(state, now)
     save(state, directory)
     errors = []
     try:
-        catalog = {feed: artifacts("quantura-public-"+feed) for feed in FEEDS}
-        # Never silently fast-forward a retention gap. An operator must review it.
-        if now-state["next_hour"] > 48*3600:
-            raise RuntimeError("CHECKPOINT_COVERAGE_GAP_REQUIRES_REVIEW")
-        while state["next_hour"]+120 <= now:
+        if type(max_hours) is not int or not 1 <= max_hours <= 48:
+            raise ValueError('INVALID_REPLAY_BATCH_SIZE')
+        catalog = {feed: artifacts("quantura-public-"+feed, through=state['next_hour']) for feed in FEEDS}
+        # An old cursor is not itself evidence of data loss. Replay consecutive
+        # hours from retained point-in-time evidence, with the existing missing,
+        # stale, provenance and publication checks intact. Bound each invocation.
+        processed, deadline = 0, time.monotonic()+18*60
+        while state["next_hour"]+120 <= now and processed < max_hours and time.monotonic() < deadline:
             hour = state["next_hour"]
             rows, proof = snapshots_at(hour, catalog)
             candidates, counts = candidates_at(rows, hour, state["identities"])
@@ -557,18 +568,24 @@ def run(directory, now=None):
             follow_tight(parent_choices, state["portfolios"][TIGHT.name], hour)
             state["coverage"][str(hour)] = {"candidate_outcomes": len(candidates), "skips": dict(counts), "artifact_ids": proof}
             state["next_hour"] += 3600
+            processed += 1
             save(state, directory)
             event("paper_hour_replayed", hour=iso(hour), candidates=len(candidates), skips=dict(counts))
-        settlement_errors = update_settlements(state, int(time.time()))
-        if settlement_errors:
-            errors.append({"settlement_reads": settlement_errors})
     except (RuntimeError, ValueError, KeyError) as error:
         # Fail the run visibly, preserving the unprocessed hour and every prior
         # entry. A missing feed cannot silently create a competing venue bias.
         errors.append({"error": str(error)[:180]})
         event("paper_retry_required", error=str(error)[:180])
     finally:
+        # Entry coverage failure must not prevent reconciliation of prior trades.
+        try:
+            settlement_errors = update_settlements(state, int(time.time()))
+            if settlement_errors:
+                errors.append({"settlement_reads": settlement_errors})
+        except (RuntimeError, ValueError, KeyError) as error:
+            errors.append({'settlement_error': str(error)[:180]})
         state["last_run_at"] = int(time.time())
+        state['catchup_pending'] = state['next_hour']+120 <= now
         state["last_errors"] = errors
         save(state, directory)
         stats(state, directory)
@@ -579,5 +596,6 @@ def run(directory, now=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument('--max-hours', type=int, default=12, help='Consecutive historical hours per invocation (1–48); never skips gaps')
     args = parser.parse_args()
-    run(args.output)
+    run(args.output, max_hours=args.max_hours)
