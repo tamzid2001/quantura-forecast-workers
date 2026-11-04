@@ -1,12 +1,11 @@
 {
-  "at": "2026-11-04T17:59:36.505246+00:00",
+  "at": "2026-11-04T18:19:09.582523+00:00",
   "bot_id": "310211",
   "dry_run": false,
-  "run_id": "41881863578",
+  "run_id": "41885309362",
   "counts": {
-    "submission_deadline_buffer_deferred": 2,
     "deferred_error": 1,
     "private_note_limit_deferred": 1
   },
-  "discovered_open_questions": 30
+  "discovered_open_questions": 28
 }
