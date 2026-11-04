@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -10,6 +11,10 @@ jobs:
     env:
       METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
       METACULUS_BOT_ID: ${{ vars.METACULUS_BOT_ID }}
+      METACULUS_CHECKPOINT_NAMESPACE: bot-${{ vars.METACULUS_BOT_ID }}
+      METACULUS_CHECKPOINT_WORKFLOW: metaculus-bot.yml
+      METACULUS_CHECKPOINT_BRANCH: main
+      GH_TOKEN: ${{ github.token }}
       PYTHONUNBUFFERED: '1'
     steps:
       - uses: actions/checkout@v6
@@ -21,8 +26,10 @@ jobs:
           cache: pip
           cache-dependency-path: metaculus_bot/requirements.lock
       - run: python -m pip install --require-hashes -r metaculus_bot/requirements.lock
-      - name: Audit question counts and own receipts without inference or writes
-        run: python -m metaculus_bot.minibench
+      - name: Read encrypted pending-generation diagnostics from the production worker
+        run: python -m metaculus_bot.checkpoint --restore artifacts/metaculus-checkpoint.enc
+      - name: Audit forecasts and private reasoning without inference or writes
+        run: python -m metaculus_bot.minibench --checkpoint artifacts/metaculus-checkpoint.enc
       - uses: actions/upload-artifact@v7
         with:
           name: metaculus-minibench-coverage

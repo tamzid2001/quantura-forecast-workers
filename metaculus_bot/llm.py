@@ -417,7 +417,7 @@ class FreeGatewayLLM(FreeLLM):
 
 def free_llm_factory(openrouter_key):
     provider = os.environ.get("METACULUS_LLM_PROVIDER", "auto")
-    if provider not in {"auto", "openrouter", "vercel", "nvidia"}:
+    if provider not in {"auto", "direct", "openrouter", "vercel", "nvidia"}:
         raise RuntimeError("INVALID_FREE_LLM_PROVIDER")
     gateway_key = os.environ.get("AI_GATEWAY_API_KEY")
     nvidia_key = os.environ.get("NVIDIA_API_KEY")
@@ -430,14 +430,28 @@ def free_llm_factory(openrouter_key):
         raise FreeQuota("NVIDIA_FREE_ROUTES_UNAVAILABLE")
     def finish(primary):
         routes = []
-        if provider in {"auto", "nvidia"} and nvidia_key:
+        if provider in {"auto", "direct", "nvidia"} and nvidia_key:
             for identifier in NVIDIA_MODELS:
                 if identifier != primary.model["id"]:
                     routes.append(lambda identifier=identifier: FreeNvidiaLLM(nvidia_key, model_id=identifier))
-        if provider == "auto" and openrouter_key:
+        if provider in {"auto", "direct"} and openrouter_key:
             for model in getattr(primary, "models", [])[1:8]:
                 routes.append(lambda identifier=model["id"]: FreeLLM(openrouter_key, model_id=identifier))
+            if provider == 'direct' and primary.service != 'OPENROUTER':
+                routes.append(lambda: FreeLLM(openrouter_key))
         return RejectedRequestFallback(primary, routes, allow_transport_fallback=True) if routes else primary
+    if provider == 'direct':
+        # Explicitly independent of Vercel hosting, AI Gateway and credits.
+        # Constructors inspect capabilities; fallbacks never replace an
+        # accepted answer, including an invalid or abstaining model answer.
+        if nvidia_key:
+            try:
+                return finish(nvidia())
+            except (ApiError, FreeQuota):
+                pass
+        if openrouter_key:
+            return finish(FreeLLM(openrouter_key))
+        raise FreeQuota('DIRECT_FREE_LLM_UNAVAILABLE')
     if provider == "nvidia":
         if not nvidia_key:
             raise FreeQuota("NVIDIA_CREDENTIAL_REQUIRED")

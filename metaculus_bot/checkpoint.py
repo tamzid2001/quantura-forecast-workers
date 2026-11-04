@@ -147,7 +147,7 @@ def workflow_checkpoint(repo, workflow, prefix):
     since = (datetime.now(timezone.utc) - timedelta(days=8)).date().isoformat()
     for page in range(1, 11):
         params = {"per_page": 100, "page": page, "created": f">={since}"}
-        branch = os.environ.get("GITHUB_REF_NAME")
+        branch = os.environ.get('METACULUS_CHECKPOINT_BRANCH') or os.environ.get("GITHUB_REF_NAME")
         if branch:
             params["branch"] = branch
         result = subprocess.run(["gh", "api", f"repos/{repo}/actions/workflows/{workflow}/runs?{urlencode(params)}"],
