@@ -23,7 +23,21 @@ concurrency:
   group: hourly-game-screener
   cancel-in-progress: false
 jobs:
+  data-api:
+    if: github.event_name == 'workflow_dispatch' || vars.HOURLY_GAME_SCREENER_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check the read-only data service before installing four model environments
+        shell: bash
+        run: |
+          code=$(curl -sS -I --max-time 20 -o /dev/null -w '%{http_code}' https://quantura.studio/api/health || true)
+          if [ "$code" != 200 ]; then
+            echo "::error::DATA_API_HTTP_${code:-000}: game discovery is unavailable; no forecasts were generated."
+            exit 1
+          fi
   screener:
+    needs: data-api
     if: github.event_name == 'workflow_dispatch' || vars.HOURLY_GAME_SCREENER_ENABLED == 'true'
     strategy:
       fail-fast: false
@@ -53,9 +67,11 @@ jobs:
           python-version: '3.12'
       - name: Use private runner-local model and artifact directories
         run: |
-          echo "QUANTURA_PUBLIC_DIR=$RUNNER_TEMP/public-pregame" >> "$GITHUB_ENV"
-          echo "HF_HOME=$RUNNER_TEMP/quantura-hf" >> "$GITHUB_ENV"
-          echo "QUANTURA_RESEARCH_DIR=$RUNNER_TEMP/hourly-research" >> "$GITHUB_ENV"
+          {
+            echo "QUANTURA_PUBLIC_DIR=$RUNNER_TEMP/public-pregame"
+            echo "HF_HOME=$RUNNER_TEMP/quantura-hf"
+            echo "QUANTURA_RESEARCH_DIR=$RUNNER_TEMP/hourly-research"
+          } >> "$GITHUB_ENV"
       - name: Install locked ensemble environment
         run: python -m pip install --no-cache-dir --require-hashes -r market_research/requirements.lock
       - name: Forecast today’s games from ten days of hourly pregame data
@@ -70,4 +86,4 @@ jobs:
           name: quantura-public-games-${{ matrix.provider }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/public-pregame/snapshot.json.gz
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
