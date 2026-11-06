@@ -9,7 +9,6 @@ jobs:
     timeout-minutes: 15
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HF_HOME: ${{ runner.temp }}/toto-diagnostic
       CUDA_VISIBLE_DEVICES: ''
       TOKENIZERS_PARALLELISM: 'false'
     steps:
@@ -20,6 +19,8 @@ jobs:
       - name: Install the existing pinned production SDK environment
         run: python -m pip install --no-cache-dir --require-hashes -r market_research/requirements.lock
       - name: Evaluate the native API and real adapter on synthetic CPU fixtures
+        env:
+          HF_HOME: ${{ runner.temp }}/toto-diagnostic
         run: python -m scripts.toto_runtime_smoke
       - uses: actions/upload-artifact@v7
         if: always()
