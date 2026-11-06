@@ -136,7 +136,7 @@ def markdown(report):
         return "N/A" if v is None else f"{v:,.{digits}f}"
     lines = ["# Sports strategy statistical research", "", report["inference_scope"], "",
              "All P&L includes recorded fees. Cohorts and execution types are kept separate. P01 is a market-price quantile, not an event win probability.", "",
-             "| Cohort / strategy | Settled | Net USD | ROI % | Std / game USD | Variance USD² | Trading days |",
+             "| Cohort / strategy | Resolved outcomes | Net USD | ROI % | Std / game USD | Variance USD² | Trading days |",
              "|---|---:|---:|---:|---:|---:|---:|"]
     for name, c in report["cohorts"].items():
         s = c["baseline"]
@@ -156,5 +156,6 @@ def markdown(report):
                   "- Missing volatility/disagreement evidence is reported as missing. Entry-quote Brier/log loss are baselines only; selected trades cannot establish unconditional forecast-quantile calibration.",
                   "- Additional 1c/2c execution cost is modeled per filled contract with recorded quantities and fees held fixed. It does not reproduce a new book or fill probability.",
                   "- Partial historical coverage, open positions and different execution models prevent a claim of demonstrated live profitability. Inspect JSON for source receipts, open counts, risk, calibration baselines, cuts and stress results.",
+                  "- Verified historical payouts without native credit timestamps remain in P&L. Their observation times are checked against source receipts, their labels are excluded from time-purged training, and realized drawdown/streaks are unavailable. Entry-order outcome drawdown is a separate diagnostic, not account equity.",
                   "- Automated daily reporting never sends orders. Any frozen prospective trial is evaluated at its fixed deadline; repeated daily looks cannot trigger live promotion.", ""])
     return "\n".join(lines)

@@ -1,0 +1,41 @@
+name: Metaculus control-plane validation
+on:
+  pull_request:
+    paths: ['metaculus_bot/**', '.github/workflows/metaculus-control-validation.yml']
+  push:
+    branches: [main]
+    paths: ['metaculus_bot/**', '.github/workflows/metaculus-control-validation.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - run: |
+          python -m pip install --require-hashes -r metaculus_bot/requirements.lock
+          python -m pip install pytest-cov==7.1.0
+      - name: Run deterministic tests without production credentials or API writes
+        run: python -m pytest -q metaculus_bot/tests --cov=metaculus_bot.automation --cov-branch --cov-report=xml:coverage.xml --cov-report=term-missing
+      - name: Validate executed coverage and control-plane thresholds
+        run: |
+          python - <<'PY'
+          from xml.etree import ElementTree as E
+          r=E.parse('coverage.xml').getroot()
+          assert r.findall('.//class') and int(r.attrib['lines-covered'])>0
+          assert float(r.attrib['line-rate'])>=.90 and float(r.attrib['branch-rate'])>=.70
+          print('Automation line coverage:',r.attrib['line-rate'],'branch:',r.attrib['branch-rate'])
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: metaculus-control-plane-coverage
+          path: coverage.xml
+          if-no-files-found: error
+          retention-days: 7

@@ -30,7 +30,7 @@ jobs:
       - name: Verify research math and point-in-time controls with real coverage
         run: |
           mkdir -p "$RUNNER_TEMP/sports-research-validation"
-          python -m pytest -q tests/test_sports_research*.py \
+          python -m pytest -q market_research/tests/test_sports_research*.py \
             --cov=market_research.sports_research --cov-branch --cov-fail-under=90 \
             --cov-report=term-missing \
             --cov-report="xml:$RUNNER_TEMP/sports-research-validation/coverage.xml" \

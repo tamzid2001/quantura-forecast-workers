@@ -61,7 +61,7 @@ def bonferroni(p, tests):
 def daily(trades, extra_per_contract=0):
     groups = defaultdict(lambda: {"profit": 0.0, "spend": 0.0, "n": 0})
     for t in trades:
-        if t.closed:
+        if t.resolved:
             v = groups[day(t.entry_at)]
             v["profit"] += float(t.profit(extra_per_contract))
             v["spend"] += float(t.spend) + float(t.quantity) * extra_per_contract
@@ -123,7 +123,9 @@ def bootstrap_comparison(baseline, selected, draws=2000, seed=20261027, min_days
 def summary(trades, extra_per_contract=0):
     if isinstance(extra_per_contract, bool) or not math.isfinite(extra_per_contract) or not 0 <= extra_per_contract <= 1:
         raise ValueError("INVALID_STRESS_COST")
-    settled = sorted((t for t in trades if t.closed), key=lambda t: (t.settled_at, t.fixture))
+    resolved = [t for t in trades if t.resolved]
+    credit_times_complete = all(t.closed for t in resolved)
+    settled = sorted(resolved, key=lambda t: (t.settled_at if credit_times_complete else t.entry_at, t.fixture))
     pnl = [float(t.profit(extra_per_contract)) for t in settled]
     returns = [p / (float(t.spend) + float(t.quantity) * extra_per_contract) for p, t in zip(pnl, settled)]
     win, loss = sum(p > 1e-12 for p in pnl), sum(p < -1e-12 for p in pnl)
@@ -150,7 +152,13 @@ def summary(trades, extra_per_contract=0):
     variance = stdlib.variance(pnl) if len(pnl) >= 2 else None
     ret_std = stdlib.stdev(returns) if len(returns) >= 2 else None
     tail = sorted(returns)[:max(1, math.ceil(.05 * len(returns)))] if returns else []
+    entry_equity = entry_peak = entry_dd = 0.0
+    for t in sorted(resolved,key=lambda t:(t.entry_at,t.fixture)):
+        entry_equity += float(t.profit(extra_per_contract))
+        entry_peak = max(entry_peak,entry_equity)
+        entry_dd = max(entry_dd,entry_peak-entry_equity)
     return {"entries": len(trades), "settled": len(settled), "open": len(trades) - len(settled),
+            "settled_count_basis":"verified final payout; account-credit timing reported separately",
             "wins": win, "losses": loss, "breakevens": len(pnl) - win - loss,
             "win_rate_pct": 100 * win / len(pnl) if pnl else None,
             "win_rate_iid_wilson95": wilson(win, len(pnl)),
@@ -167,7 +175,13 @@ def summary(trades, extra_per_contract=0):
             "empirical_return_q05": quantile(returns, .05) if returns else None,
             "empirical_worst_5pct_mean_return": stdlib.mean(tail) if tail else None,
             "profit_factor": gross_win / gross_loss if gross_loss else None,
-            "max_realized_drawdown_usd": dd, "max_win_streak": max_w, "max_loss_streak": max_l,
+            "max_realized_drawdown_usd": dd if credit_times_complete else None,
+            "max_win_streak": max_w if credit_times_complete else None,
+            "max_loss_streak": max_l if credit_times_complete else None,
+            "resolved_outcomes_missing_credit_time":sum(not t.closed for t in resolved),
+            "native_credit_timing_complete":credit_times_complete,
+            "entry_order_outcome_drawdown_usd":entry_dd,
+            "outcome_sequence_basis":"settlement_time" if credit_times_complete else "entry_time_diagnostic_only",
             "trading_days": len(days), "daily_net_usd": days,
             "block_sign_p_positive_median": sign_p_value(block_profits),
             "sign_test_nonoverlapping_blocks": len(block_profits),

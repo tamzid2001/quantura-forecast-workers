@@ -37,6 +37,9 @@ jobs:
           fi
       - id: session
         run: python scripts/screener_schedule.py --publication-manifest home-work/published/run-manifest.json >> "$GITHUB_OUTPUT"
+      - name: Verify gateway before starting six model workers
+        if: steps.session.outputs.should_run == 'true'
+        run: python scripts/service_preflight.py
       - name: Select six largest eligible mega-cap stocks
         if: steps.session.outputs.should_run == 'true'
         id: universe

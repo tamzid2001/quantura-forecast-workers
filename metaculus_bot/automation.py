@@ -6,19 +6,41 @@ import base64
 import io
 import json
 import os
+import re
 import subprocess
+import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+class GitHubAPIError(RuntimeError):
+    def __init__(self,status,method):
+        self.status=status
+        self.method=method
+        super().__init__('GITHUB_API_'+method+'_HTTP_'+str(status or 'UNAVAILABLE'))
 
 
 def github(path, body=None, method="PUT"):
     args = ["gh", "api", path]
     if body is not None:
         args += ["--method", method, "--input", "-"]
-    result = subprocess.run(args, input=json.dumps(body).encode() if body else None,
-                            capture_output=True, check=True)
-    return json.loads(result.stdout) if result.stdout else {}
+    operation = method if body is not None else 'GET'
+    for attempt in range(3 if operation=='GET' else 1):
+        try:
+            result = subprocess.run(args,input=json.dumps(body).encode() if body is not None else None,
+                                    capture_output=True,check=False,timeout=30)
+            match=re.search(rb'\(HTTP (\d{3})\)',result.stderr or b'')
+            status=int(match[1]) if match else None
+            if not result.returncode:
+                return json.loads(result.stdout) if result.stdout else {}
+        except subprocess.TimeoutExpired:
+            status=None
+        if operation=='GET' and attempt<2 and status in {None,429,500,502,503,504}:
+            time.sleep(.25*(attempt+1))
+            continue
+        # Never include GitHub's body/stderr or blindly retry dispatch writes.
+        raise GitHubAPIError(status,operation)
 
 
 def queue_ids(queue, bot_id, now=None, maximum=12):
@@ -70,18 +92,30 @@ def heartbeat(report):
     repo = os.environ["GITHUB_REPOSITORY"]
     endpoint = f"repos/{repo}/contents/status/metaculus.json"
     # The first run has no status file. Only a confirmed 404 permits creation.
-    result = subprocess.run(["gh", "api", endpoint], capture_output=True)
-    if result.returncode:
-        if b"404" not in result.stderr:
-            raise RuntimeError("HEARTBEAT_READ_FAILED")
-        prior = {}
-    else:
-        prior = json.loads(result.stdout)
     body = {"message": "Record Metaculus worker activity [skip ci]", "branch": "main",
             "content": base64.b64encode((json.dumps(public, indent=2) + "\n").encode()).decode()}
-    if prior.get("sha"):
-        body["sha"] = prior["sha"]
-    github(endpoint, body)
+    for attempt in range(3):
+        try:
+            prior = github(endpoint)
+        except GitHubAPIError as error:
+            if error.status!=404:
+                raise
+            prior={}
+        if prior.get('content'):
+            previous=json.loads(base64.b64decode(prior['content']))
+            previous_at=datetime.fromisoformat(previous['at'].replace('Z','+00:00'))
+            if previous_at>=datetime.fromisoformat(public['at']):
+                print(json.dumps({'event':'metaculus_public_heartbeat','status':'superseded_by_newer_activity'}))
+                return
+        update={**body,**({'sha':prior['sha']} if prior.get('sha') else {})}
+        try:
+            github(endpoint,update)
+            break
+        except GitHubAPIError as error:
+            # A confirmed SHA conflict permits bounded read/compare/write.
+            # An uncertain PUT or dispatch failure is not blindly retried.
+            if error.status!=409 or attempt==2:
+                raise
     print(json.dumps({"event": "metaculus_public_heartbeat", "run_id": public["run_id"], "dry_run": public["dry_run"]}))
 
 
