@@ -66,6 +66,49 @@ def archive(members):
 
 
 class DataTests(unittest.TestCase):
+    def test_verified_historical_payout_does_not_invent_credit_time(self):
+        row=ledger_row(payout='.5',settlement_at='',outcome_evidence=json.dumps({'checked_at':BASE+7200}))
+        t=data.normalize(row,'historical_verified')
+        self.assertTrue(t.resolved)
+        self.assertFalse(t.closed)
+        self.assertIsNone(t.settled_at)
+        self.assertEqual(t.profit(),Decimal('-.04'))
+        s=statistics.summary([t])
+        self.assertEqual(s['net_pnl_usd'],-.04)
+        self.assertEqual(s['settled'],1)
+        self.assertEqual(s['resolved_outcomes_missing_credit_time'],1)
+        self.assertIsNone(s['max_realized_drawdown_usd'])
+        self.assertIsNone(s['max_loss_streak'])
+        self.assertEqual(s['entry_order_outcome_drawdown_usd'],.04)
+        train,_,purged=study.split([t],BASE+86400)
+        self.assertEqual(train,[])
+        self.assertEqual(purged,[t])
+        with self.assertRaisesRegex(ValueError,'PARTIAL_SETTLEMENT_EVIDENCE'):
+            data.normalize(row,'paper')
+
+    def test_unknown_historical_credit_time_requires_bounded_observation_evidence(self):
+        for raw in ['', '[]', '{}', 'x'*16385, json.dumps({'checked_at':BASE}),json.dumps({'checked_at':True})]:
+            with self.subTest(raw=raw[:50]),self.assertRaises(ValueError):
+                data.normalize(ledger_row(settlement_at='',outcome_evidence=raw),'historical_verified')
+
+    def test_source_receipt_cannot_predate_observed_historical_outcome(self):
+        import csv
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);month=root/'month';month.mkdir()
+            row=ledger_row(settlement_at='',scope='combined_verified_games',
+                           outcome_evidence=json.dumps({'checked_at':BASE+10000}))
+            with (month/'ledger.csv').open('w') as stream:
+                writer=csv.DictWriter(stream,fieldnames=list(row));writer.writeheader();writer.writerow(row)
+            (month/'report.json').write_text(json.dumps({'mode':'retrospective_paper_only','as_of':BASE+7200}))
+            with self.assertRaisesRegex(ValueError,'LEDGER_EVENT_AFTER_SOURCE_RECEIPT'):data.load_inputs(root)
+            row['outcome_evidence']=json.dumps({'checked_at':BASE+3600})
+            with (month/'ledger.csv').open('w') as stream:
+                writer=csv.DictWriter(stream,fieldnames=list(row));writer.writeheader();writer.writerow(row)
+            trades,sources=data.load_inputs(root)
+            self.assertEqual(len(trades),1)
+            self.assertEqual(sources['month']['entries'],1)
+            self.assertEqual(statistics.daily(trades)[data.day(BASE)]['profit'],.96)
+
     def test_money_preserves_decimal_precision(self):
         t = data.normalize(ledger_row(), "paper")
         self.assertEqual(t.profit(), Decimal(".96"))

@@ -77,17 +77,22 @@ class Trade:
     planned_price: Decimal
     payout: Decimal | None
     features: dict = field(default_factory=dict)
+    outcome_observed_at: float | None = None
 
     @property
     def closed(self):
         return self.payout is not None and self.settled_at is not None
 
     @property
+    def resolved(self):
+        return self.payout is not None
+
+    @property
     def spend(self):
         return self.cost + self.fee
 
     def profit(self, extra_per_contract=0):
-        if not self.closed:
+        if not self.resolved:
             raise ValueError("UNSETTLED_TRADE")
         return self.quantity * self.payout - self.spend - self.quantity * Decimal(str(extra_per_contract))
 
@@ -108,10 +113,25 @@ def normalize(row, cohort):
     payout = None if payout_raw in (None, "", "None", "null") else decimal(payout_raw, "payout")
     settled_raw = row.get("settlement_at")
     settled = None if settled_raw in (None, "", "None", "null") else timestamp(settled_raw)
-    if (payout is None) != (settled is None):
+    observed = None
+    historical_outcome_only = cohort == 'historical_verified' and payout is not None and settled is None
+    if (payout is None) != (settled is None) and not historical_outcome_only:
         raise ValueError("PARTIAL_SETTLEMENT_EVIDENCE")
-    if payout is not None and (not 0 <= payout <= 1 or settled < entry):
+    if payout is not None and (not 0 <= payout <= 1 or (settled is not None and settled < entry)):
         raise ValueError("INVALID_SETTLEMENT")
+    if historical_outcome_only:
+        # The venue can verify a payout without providing its account-credit
+        # clock. Retain that distinction; never substitute the market close.
+        raw = row.get('outcome_evidence', '')
+        if not isinstance(raw, str) or len(raw)>16384:
+            raise ValueError('INVALID_HISTORICAL_OUTCOME_EVIDENCE')
+        try:
+            evidence = json.loads(raw)
+            observed = timestamp(evidence['checked_at'])
+        except (ValueError, TypeError, KeyError) as error:
+            raise ValueError('INVALID_HISTORICAL_OUTCOME_EVIDENCE') from error
+        if observed < entry:
+            raise ValueError('OUTCOME_EVIDENCE_PRECEDES_ENTRY')
     features = {name: optional_number(row, name) for name in (
         "quote_change_std", "quote_change_variance", "quote_change_pairs",
         "feature_cutoff_at", "forecast_iqr", "forecast_tail_width", "discount_quote_sigma",
@@ -145,7 +165,7 @@ def normalize(row, cohort):
     features["fee_fraction"] = float(fee / (cost + fee))
     features["planned_price"] = float(price)
     return Trade(cohort, strategy, fixture, row["provider"], row.get("symbol", ""),
-                 row.get("event_title", ""), entry, settled, quantity, cost, fee, price, payout, features)
+                 row.get("event_title", ""), entry, settled, quantity, cost, fee, price, payout, features, observed)
 
 
 def read_csv(path):
@@ -197,7 +217,8 @@ def load_inputs(directory):
                 continue
             trade = normalize(row, cohort)
             if receipt_at is not None and (trade.entry_at > timestamp(receipt_at)+60
-                    or (trade.closed and trade.settled_at > timestamp(receipt_at)+60)):
+                    or (trade.closed and trade.settled_at > timestamp(receipt_at)+60)
+                    or (trade.outcome_observed_at is not None and trade.outcome_observed_at > timestamp(receipt_at)+60)):
                 raise ValueError("LEDGER_EVENT_AFTER_SOURCE_RECEIPT")
             accepted.append(trade)
         seen = set()
