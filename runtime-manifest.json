@@ -37,6 +37,17 @@
       "scope": "incremental reliability patch; other runtime components retain the full-export source commit",
       "source_commit": "23f248681622f2626a2a020dd8000cf5f52e99dc"
     },
+    "native_local_snapshots": {
+      "files": [
+        "ensemble_forecasting/adapters/checkpoint_access.py",
+        "ensemble_forecasting/adapters/toto_loader.py",
+        "ensemble_forecasting/adapters/granite.py",
+        "ensemble_forecasting/adapters/chronos.py",
+        "tests/test_toto_loading.py"
+      ],
+      "scope": "Exact immutable reviewed public snapshots with config/weight validation and local-only native loading; private Granite/Chronos download semantics retained.",
+      "source_commit": "fc79e2d5eac5d3aba7ff07d2df2ac0f12ae251f6"
+    },
     "public_checkpoint_access": {
       "files": [
         "ensemble_forecasting/adapters/checkpoint_access.py",
@@ -146,9 +157,9 @@
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
     "ensemble_forecasting/adapters/base.py": "03c44461cef246ecc358032cdd34e90106fe3f6c30a99e4401d98af564426bf1",
-    "ensemble_forecasting/adapters/checkpoint_access.py": "e406f3a7b34123cf4199b8a6358b5b26b5bb62deaacb520b073bf3e4820a3f88",
-    "ensemble_forecasting/adapters/chronos.py": "4600011220427cf28be43a3dad623a72fca6f3aa19851c094e4dc9f4fe0279c2",
-    "ensemble_forecasting/adapters/granite.py": "55e47c4cb9179e656acd194a8c7417f1ce841df50acb6c812142ed2d6c99094e",
+    "ensemble_forecasting/adapters/checkpoint_access.py": "3cc9fb8bbd86d395e9d66dba7bfd52870d52e7b588196a09c71f469c4ff7a4d6",
+    "ensemble_forecasting/adapters/chronos.py": "13405ebeb7bba52e2ecbcddd8cce1c0d6504aba95eafe39a65b995edc6e8ad34",
+    "ensemble_forecasting/adapters/granite.py": "70993804e1ee8265bb2e4cd4bb95b1405a51ef3187341dc96cce4dd2fc3dcc44",
     "ensemble_forecasting/adapters/mock.py": "c0b0508dcaa22f41765bf51dd12a8a3d93a1efefa0b5aa08f29d48c4fc7a351f",
     "ensemble_forecasting/adapters/native_foundation.py": "be67e291384741f7bfb5e018f4252d318eb5f08a53ad5ab903544522e52baf1f",
     "ensemble_forecasting/adapters/prophet.py": "6a3ae37427a3f3b2112cf00329b08b25b599cd377a8eea4d82573f30ccc43bff",
@@ -156,7 +167,7 @@
     "ensemble_forecasting/adapters/timesfm.py": "1e6ef12db47856da6b19cacf221bc13d775fb2366cb89e1d923b200eb059a2d3",
     "ensemble_forecasting/adapters/timestral.py": "beff0e518c970d38521347820e3d2f4f284ffdfe3872189fe683749de036dca0",
     "ensemble_forecasting/adapters/toto.py": "8e202d2958c9dfafd251679b5c920febd3c4964835ec740c6a515b2907e3e70a",
-    "ensemble_forecasting/adapters/toto_loader.py": "2f6086c5160bcf1cd12e239d061e2d4972b0a8045a9744b5e1f4cd7cbe6b5e1c",
+    "ensemble_forecasting/adapters/toto_loader.py": "28b0855c3554588cee9879c4c122abb7a4605d297ace13de36d94d7f7aa1299f",
     "ensemble_forecasting/calendars.py": "3de009f0fc49a333d8385f834c44d5d1e95556b001ab673efcf1e9978fbbef66",
     "ensemble_forecasting/capabilities.py": "1ef6e93942d56e0b9edc6ff99cd522a00f1186f63a64ec67b0397f410793d104",
     "ensemble_forecasting/cli.py": "d60dd879090823c6b44bd1580d1ba4928a24015ec1e291109fdf7d85ce5d6635",
@@ -259,7 +270,7 @@
     "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859",
     "tests/runtime-controls-coverage.ini": "a39d49ff753ebc9e7968df289063ba4ebe396c001018967046f31b5fab53fe23",
     "tests/test_service_preflight.py": "9b6361c465c95390f163f692de42e4b09201aea7bfaca00d20c5e8617228cb14",
-    "tests/test_toto_loading.py": "a661b6a51d230baac11bff1e252e65ded1b6e7011f739c4addb72e4ca4fe67d1"
+    "tests/test_toto_loading.py": "b58227ba781869131f2b8a3d0527dfe505f61862e298aa1bbb3d1f927e333954"
   },
   "source_commit": "42f93feeb2fea375beef3be8dbce66162a811894"
 }

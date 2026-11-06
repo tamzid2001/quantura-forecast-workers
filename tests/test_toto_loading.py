@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from ensemble_forecasting.adapters.toto_loader import load_toto_model
-from ensemble_forecasting.adapters.checkpoint_access import checkpoint_token
+from ensemble_forecasting.adapters.checkpoint_access import checkpoint_location, checkpoint_token
 
 
 @pytest.mark.parametrize("checkpoint,expected", [
@@ -22,6 +22,18 @@ def test_only_exact_inspected_public_ids_disable_account_authentication(checkpoi
 
 def test_private_checkpoint_without_a_credential_does_not_gain_one():
     assert checkpoint_token("private-org/model", None) is None
+
+
+@pytest.mark.parametrize("checkpoint", ["Datadog/Toto-2.0-4m", "ibm-granite/granite-timeseries-patchtst-fm-r2", "amazon/chronos-2", "private-org/model"])
+def test_local_snapshot_resolution_is_explicit_and_private_models_remain_remote(checkpoint):
+    with patch('ensemble_forecasting.adapters.checkpoint_access.download_safetensors_snapshot',return_value='/fixture/cache') as download:
+        result=checkpoint_location(checkpoint,'a'*40,token='fixture-credential')
+    if checkpoint=='private-org/model':
+        assert result==checkpoint
+        download.assert_not_called()
+    else:
+        assert result=='/fixture/cache'
+        download.assert_called_once_with(checkpoint,'a'*40,token='fixture-credential')
 
 
 @pytest.mark.parametrize("sharded", [False, True])

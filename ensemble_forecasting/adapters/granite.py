@@ -8,7 +8,7 @@ from ..capabilities import MODEL_REGISTRY
 from ..schemas import ForecastRequest, ModelForecast, PreparedSeries, canonical_quantile_string
 from ..validation import monotonic_rearrangement
 from .native_foundation import checkpoint_identity
-from .checkpoint_access import checkpoint_token
+from .checkpoint_access import checkpoint_location, checkpoint_token
 from .base import ForecastAdapter, ModelExecutionError, cleanup_memory, hf_token, package_versions
 
 
@@ -26,11 +26,12 @@ class GraniteAdapter(ForecastAdapter):
         model = None
         try:
             checkpoint, revision = checkpoint_identity(self.model_id, request)
+            location = checkpoint_location(checkpoint, revision, token=hf_token())
             model = PatchTSTFMForPrediction.from_pretrained(
-                checkpoint,
+                location,
                 token=checkpoint_token(checkpoint, hf_token()),
                 low_cpu_mem_usage=True,
-                **({"revision": revision} if revision else {}),
+                **({"local_files_only": True} if location != checkpoint else {"revision": revision} if revision else {}),
             ).to("cpu").eval()
             maximum = int(getattr(model.config, "context_length", MODEL_REGISTRY["models"]["granite"]["maxContextLength"]))
             context_length = min(request.context_length or 512, maximum, len(series.transformed_values))
