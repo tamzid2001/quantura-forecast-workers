@@ -24,7 +24,7 @@ jobs:
           "$RUNNER_TEMP/actionlint" -shellcheck='' -pyflakes=''
       - uses: actions/setup-python@v6
         with: {python-version: '3.12'}
-      - run: python -m pip install pytest==9.1.1 pytest-cov==7.1.0 numpy==2.5.2
+      - run: python -m pip install pytest==9.1.1 pytest-cov==7.1.0 numpy==2.5.2 pandas==2.3.3
       - run: python -m pytest -q tests/test_service_preflight.py tests/test_toto_loading.py --cov --cov-config=tests/runtime-controls-coverage.ini --cov-branch --cov-fail-under=90 --cov-report=xml:coverage.xml --cov-report=term-missing
       - name: Validate nonempty executed report and branch threshold
         run: |

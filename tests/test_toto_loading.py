@@ -21,11 +21,24 @@ def test_loader_preserves_checkpoint_revision_and_isolates_local_sdk_load(tmp_pa
     }):
         result = load_toto_model("Datadog/Toto-2.0-4m", revision, token="fixture-credential")
     download.assert_called_once_with(
-        repo_id="Datadog/Toto-2.0-4m", revision=revision, token="fixture-credential",
+        repo_id="Datadog/Toto-2.0-4m", revision=revision, token=False,
         allow_patterns=["config.json", "*.safetensors", "*.safetensors.index.json"],
     )
     sdk.from_pretrained.assert_called_once_with(str(tmp_path), local_files_only=True)
     assert result is sdk.from_pretrained.return_value
+
+
+def test_private_checkpoint_retains_authorization_without_anonymous_retry(tmp_path):
+    download = Mock(side_effect=PermissionError("fixture-denial"))
+    sdk = Mock()
+    with patch.dict("sys.modules", {
+        "huggingface_hub": SimpleNamespace(snapshot_download=download),
+        "toto2": SimpleNamespace(Toto2Model=sdk),
+    }), pytest.raises(PermissionError):
+        load_toto_model("private-org/custom-toto", "a" * 40, token="fixture-credential")
+    assert download.call_args.kwargs["token"] == "fixture-credential"
+    assert download.call_count == 1
+    sdk.from_pretrained.assert_not_called()
 
 
 @pytest.mark.parametrize("config,weights,missing", [
