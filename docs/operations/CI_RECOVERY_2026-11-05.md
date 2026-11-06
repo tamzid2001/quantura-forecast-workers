@@ -1,6 +1,33 @@
-# November 5 worker reliability repairs
+# November 5–6 worker reliability repairs
 
 These changes repair software control paths. They do not restore a disabled hosting account, place orders, flush billing manually, or replace missing historical observations.
+
+
+## Current verified status — November 6
+
+Public worker PR21 merged as `72f12aa7f52ae5e3aaa20f068f0ef959072a9544`. The full four-shard perpetual run [42311504402](https://github.com/tamzid2001/quantura-forecast-workers/actions/runs/42311504402) passed and published23 real forecasts.62 listings were explicitly excluded for insufficient genuine daily history. These are forecast publications, not trades, realized profits or proof of predictive accuracy. Native model status, fixed revisions, per-quantile effective weights and non-mock runtime provenance are retained in the public snapshots. Unsupported native tail quantiles remain unavailable; the original pooling policy is unchanged.
+
+The remaining three real CPU SDK diagnostics also passed: TimesFM42310942579, Timestral42310945430 and T042310948333. Together with the Toto/Granite/Chronos runs below, all six native neural adapters passed512/511-row synthetic-fixture cases in the pinned Linux CPU runtime. TimesFM's diagnostic is explicitly noncommercial evaluation; production access and commercial-license approval checks remain required before loading weights. Google model-code licensing does not override checkpoint-weight restrictions. Existing deployment approval flags were not changed. Inspected immutable model references: [TimesFM3](https://huggingface.co/google/timesfm-3.0-pytorch/tree/43046b85ec22d584a13f8098c2ed39c889e129c2), [Timestral](https://huggingface.co/mistralai/Timestral-209M/tree/9874d252ab0aae16f7f7c999f98f98d6ad7d8365), [T0gamma](https://huggingface.co/theforecastingcompany/t0-gamma/tree/e08aee083778f1f32da4974c0a34276776a35c52). No upstream weights or implementation code are committed.
+
+Broader local regression:1,406 passed,29 skipped,59 subtests. The subsequent gateway-maintenance/access controls suite has36 passed and22 subtests; executed combined coverage96.81%, with the checkpoint/access and Toto local-loader modules100% line/branch. Machine-readable Cobertura is mandatory in the public controls CI. This CPU evidence does not establish GPU, robot or RDMA hardware validation.
+
+### Acknowledged hosting maintenance
+
+The production gateway still returns HTTP402 with `x-vercel-error: DEPLOYMENT_DISABLED`. No paid hosting upgrade is authorized. Automatic stock/game fan-out, backend callbacks and metered-delivery schedules may defer this **exact** known restriction when all three conditions hold:
+
+- The invocation is a GitHub `schedule` event.
+- Repository variable `QUANTURA_HOSTING_MAINTENANCE` is exactly `true`.
+- The caller explicitly uses `--respect-hosting-maintenance`.
+
+The preflight emits `available=false`, `deferred=true`, and a **NO PRODUCTION WORK EXECUTED** summary. Downstream inference, publication, callbacks and billing are skipped. It never reports delivery or site recovery. The next scheduled read-only probe automatically permits the original workflow only after HTTP200. Set the variable back to `false` after recovery. Unknown402 responses, other HTTP errors, network failures and all manual invocations still fail. The private live-smoke alert is unchanged and continues to expose the outage. Unit tests cover the full policy boundary, machine outputs and recovery. Workflow syntax and context checks remain mandatory.
+
+Metaculus and the direct perpetual screener do not depend on this gateway guard. The sports quote-replay paper tracker remains blocked at November2 05:00UTC by missing point-in-time game-feed evidence. It must not replace that evidence with newly generated retrospective forecasts or skip the gap silently. Resume requires authentic retained source evidence or a separately reviewed, explicitly gapped new forward epoch. A deferred hosting callback does not make the research sample current.
+
+### Account restrictions and fleet audit
+
+100 accessible nonarchived repositories were inventoried (96 private). Sampling the latest20 default-branch runs per repository found333 October22 failure records whose job/check annotations all indicate account execution blocks before tests, including canceled matrix siblings. This is historical failure classification, not a current successful test of those repositories. Private app PR291 code checks pass, but mandatory artifact upload still fails the account storage quota. No coverage gate, artifact requirement or failed history was removed. Read-only package enumeration found zero packages across container/npm/maven/rubygems/docker/nuget; exact billed usage remains unavailable to the current token. Most retained app artifacts are unique research evidence and were preserved. No billing settings or spending limits changed.
+
+The following sections retain the chronological diagnosis and superseded intermediate pending results.
 
 ## Verified failure causes
 

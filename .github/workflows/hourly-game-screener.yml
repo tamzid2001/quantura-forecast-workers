@@ -27,18 +27,20 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || vars.HOURLY_GAME_SCREENER_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    outputs:
+      available: ${{ steps.gateway.outputs.available }}
     steps:
-      - name: Check the read-only data service before installing four model environments
-        shell: bash
-        run: |
-          code=$(curl -sS -I --max-time 20 -o /dev/null -w '%{http_code}' https://quantura.studio/api/health || true)
-          if [ "$code" != 200 ]; then
-            echo "::error::DATA_API_HTTP_${code:-000}: game discovery is unavailable; no forecasts were generated."
-            exit 1
-          fi
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Check data gateway before installing four model environments
+        id: gateway
+        env:
+          QUANTURA_HOSTING_MAINTENANCE: ${{ vars.QUANTURA_HOSTING_MAINTENANCE || 'false' }}
+        run: python3 scripts/service_preflight.py --respect-hosting-maintenance
   screener:
     needs: data-api
-    if: github.event_name == 'workflow_dispatch' || vars.HOURLY_GAME_SCREENER_ENABLED == 'true'
+    if: needs.data-api.outputs.available == 'true' && (github.event_name == 'workflow_dispatch' || vars.HOURLY_GAME_SCREENER_ENABLED == 'true')
     strategy:
       fail-fast: false
       matrix:
