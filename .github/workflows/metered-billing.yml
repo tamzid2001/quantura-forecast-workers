@@ -18,8 +18,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify gateway before reading billing credentials or flushing usage
-        run: python scripts/service_preflight.py
+        id: gateway
+        env:
+          QUANTURA_HOSTING_MAINTENANCE: ${{ vars.QUANTURA_HOSTING_MAINTENANCE || 'false' }}
+        run: python scripts/service_preflight.py --respect-hosting-maintenance
       - name: Deliver pending forecast usage
+        if: steps.gateway.outputs.available == 'true'
         env:
           WORKER_TOKEN: ${{ secrets.QUANTURA_METERED_BILLING_WORKER_TOKEN }}
         run: |

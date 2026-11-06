@@ -56,7 +56,7 @@ jobs:
       contents: read
       actions: read
     outputs:
-      should_run: ${{ steps.session.outputs.should_run }}
+      should_run: ${{ steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true' }}
       matrix: ${{ steps.matrix.outputs.value }}
       universe_hash: ${{ steps.metadata.outputs.universe_hash }}
       scan_date: ${{ steps.metadata.outputs.scan_date }}
@@ -97,9 +97,12 @@ jobs:
           python scripts/screener_schedule.py "${args[@]}" --publication-manifest screener-work/published/run-manifest.json >> "$GITHUB_OUTPUT"
       - name: Check gateway before universe generation and inference fan-out
         if: steps.session.outputs.should_run == 'true'
-        run: python scripts/service_preflight.py
+        id: gateway
+        env:
+          QUANTURA_HOSTING_MAINTENANCE: ${{ vars.QUANTURA_HOSTING_MAINTENANCE || 'false' }}
+        run: python scripts/service_preflight.py --respect-hosting-maintenance
       - name: Generate S&P 500, Nasdaq, SPY, and earnings universe
-        if: steps.session.outputs.should_run == 'true'
+        if: steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true'
         env:
           SCAN_DATE: ${{ steps.session.outputs.scan_date }}
           SESSION_CLOSE: ${{ steps.session.outputs.session_close }}
@@ -123,11 +126,11 @@ jobs:
           fi
           "${command[@]}"
       - name: Export matrix
-        if: steps.session.outputs.should_run == 'true'
+        if: steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true'
         id: matrix
         run: echo "value=$(jq -c . screener-work/universe/matrix.json)" >> "$GITHUB_OUTPUT"
       - name: Export universe metadata
-        if: steps.session.outputs.should_run == 'true'
+        if: steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true'
         id: metadata
         shell: bash
         run: |
@@ -135,7 +138,7 @@ jobs:
           echo "scan_date=$(jq -r .scan_date screener-work/universe/universe.json)" >> "$GITHUB_OUTPUT"
           echo "selected_count=$(jq -r .counts.selected screener-work/universe/universe.json)" >> "$GITHUB_OUTPUT"
       - name: Upload immutable universe input
-        if: steps.session.outputs.should_run == 'true'
+        if: steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: quantura-screener-universe-${{ github.run_id }}
@@ -143,7 +146,7 @@ jobs:
           if-no-files-found: error
           retention-days: 2
       - name: Summarize universe
-        if: steps.session.outputs.should_run == 'true'
+        if: steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true'
         run: |
           {
             echo "## Current screener universe"

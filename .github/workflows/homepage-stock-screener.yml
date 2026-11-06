@@ -14,7 +14,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      should_run: ${{ steps.session.outputs.should_run }}
+      should_run: ${{ steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true' }}
       scan_date: ${{ steps.session.outputs.scan_date }}
       universe_hash: ${{ steps.universe.outputs.hash }}
     steps:
@@ -39,9 +39,12 @@ jobs:
         run: python scripts/screener_schedule.py --publication-manifest home-work/published/run-manifest.json >> "$GITHUB_OUTPUT"
       - name: Verify gateway before starting six model workers
         if: steps.session.outputs.should_run == 'true'
-        run: python scripts/service_preflight.py
+        id: gateway
+        env:
+          QUANTURA_HOSTING_MAINTENANCE: ${{ vars.QUANTURA_HOSTING_MAINTENANCE || 'false' }}
+        run: python scripts/service_preflight.py --respect-hosting-maintenance
       - name: Select six largest eligible mega-cap stocks
-        if: steps.session.outputs.should_run == 'true'
+        if: steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true'
         id: universe
         env:
           SCAN_DATE: ${{ steps.session.outputs.scan_date }}
@@ -51,7 +54,7 @@ jobs:
           python -m scripts.homepage_screener select --input home-work/all.json --output home-work/universe.json
           echo "hash=$(jq -r .universe_hash home-work/universe.json)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
-        if: steps.session.outputs.should_run == 'true'
+        if: steps.session.outputs.should_run == 'true' && steps.gateway.outputs.available == 'true'
         with:
           name: homepage-universe
           path: home-work/universe.json
