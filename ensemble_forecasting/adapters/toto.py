@@ -8,6 +8,7 @@ from ..capabilities import MODEL_REGISTRY
 from ..schemas import ForecastRequest, ModelForecast, PreparedSeries
 from ..validation import coerce_quantile_horizon, interpolate_native_quantiles
 from .base import ForecastAdapter, ModelExecutionError, cleanup_memory, device_name, hf_token, package_versions
+from .toto_loader import load_toto_model
 
 NATIVE_LEVELS = tuple(round(value / 10, 1) for value in range(1, 10))
 
@@ -51,8 +52,7 @@ class TotoAdapter(ForecastAdapter):
         model = None
         try:
             checkpoint, revision = toto_checkpoint(request)
-            model = Toto2Model.from_pretrained(checkpoint, token=hf_token(), **(
-                {"revision": revision} if revision else {})).to(device).eval()
+            model = load_toto_model(checkpoint, revision, token=hf_token()).to(device).eval()
             context_length = min(
                 request.context_length or 512,
                 int(MODEL_REGISTRY["models"]["toto"]["maxContextLength"]),

@@ -18,6 +18,19 @@
       "source_commit": "23f248681622f2626a2a020dd8000cf5f52e99dc"
     },
     "sports_paper": "5c407108629bb0bf3394dec81b9e578a35df4fcd",
+    "toto_local_snapshot_loader": {
+      "files": [
+        "ensemble_forecasting/adapters/toto.py",
+        "ensemble_forecasting/adapters/toto_loader.py",
+        "scripts/toto_runtime_smoke.py",
+        "tests/test_toto_loading.py",
+        "tests/runtime-controls-coverage.ini",
+        ".github/workflows/runtime-preflight-validation.yml",
+        "docs/operations/CI_RECOVERY_2026-11-05.md"
+      ],
+      "scope": "Pinned model config and safetensors via official local SDK loading; no change to frozen historical replay.",
+      "source_commit": "65e6e68b76203738d1c053ff25e2e201e125c69e"
+    },
     "worker_reliability": {
       "files": [
         ".github/workflows/homepage-stock-screener.yml",
@@ -66,7 +79,7 @@
     ".github/workflows/metaculus-readiness.yml": "2db9ddfec700da79c787ca643abc35bc71efea0aa59c4baad16729e303929667",
     ".github/workflows/metaculus-watchdog.yml": "edfc270dc523b09ce6e7c3c552e8cef049859fa8b2d54a1ef35f8425b0653da6",
     ".github/workflows/metered-billing.yml": "ffe59eef6bbed24e280fee6f32e179e0b8f67c1547004b4a84dff2c36ce606eb",
-    ".github/workflows/runtime-preflight-validation.yml": "32e8f46564d17e9acce01c866c623f650356e587206b55e49bf2ec9b60078ff0",
+    ".github/workflows/runtime-preflight-validation.yml": "d0320ab68563f1a426acd19f6885bec4c1f864d63af8d439f8366f9bd74625da",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
     ".github/workflows/sports-month-backtest.yml": "2820397d795d92547dd28598135631ccdd29feb1781d1ad73d3251ed34a47eca",
     ".github/workflows/sports-month-watchdog.yml": "0c75a88cebf1f92256d03791e176dec8afc8015a0703c2cc97ad7f392f6d2a65",
@@ -88,7 +101,7 @@
     "docs/games-p01-paper.md": "ea4a350047de8a15f9e914e3065c5bace4a4bb604f701225d4632f549f1ceb0d",
     "docs/metaculus-bot.md": "96d1a7f0983fd4b442288b84ac8cdf7d6fd737789cef2ddfc490c7432767e8d7",
     "docs/metaculus-research-evaluation.md": "c44c92602e3f76b2c543294a912251ec040c71843c60345102b904a176f69f27",
-    "docs/operations/CI_RECOVERY_2026-11-05.md": "41fd73b34890a7fed5fbf2e89a8259fb57fa17bb49a159c689d6bf14b1c6e003",
+    "docs/operations/CI_RECOVERY_2026-11-05.md": "1f41f02eb79447e6158a867090ebea4d0806b13352c699a9ffac2ebef2ff336a",
     "docs/sports-paper-snapshot-recovery.md": "8935f95e4149f4359a8e5b311fc594631e41e4e83cd0d84c68560ed716843db8",
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
@@ -101,7 +114,8 @@
     "ensemble_forecasting/adapters/t0.py": "0e0f1f7664f081f8f6767e359c459ac18082817a3db2339ccf4f2f28a5c8f6dc",
     "ensemble_forecasting/adapters/timesfm.py": "1e6ef12db47856da6b19cacf221bc13d775fb2366cb89e1d923b200eb059a2d3",
     "ensemble_forecasting/adapters/timestral.py": "beff0e518c970d38521347820e3d2f4f284ffdfe3872189fe683749de036dca0",
-    "ensemble_forecasting/adapters/toto.py": "c4f8cb77f1e18e56f66429ebcf55fa249f6a518c683cb51e98037513ce78a6fd",
+    "ensemble_forecasting/adapters/toto.py": "8e202d2958c9dfafd251679b5c920febd3c4964835ec740c6a515b2907e3e70a",
+    "ensemble_forecasting/adapters/toto_loader.py": "a46c776c76342f1a4687817377907ec20754641f0bab65a47ab1b706b3232492",
     "ensemble_forecasting/calendars.py": "3de009f0fc49a333d8385f834c44d5d1e95556b001ab673efcf1e9978fbbef66",
     "ensemble_forecasting/capabilities.py": "1ef6e93942d56e0b9edc6ff99cd522a00f1186f63a64ec67b0397f410793d104",
     "ensemble_forecasting/cli.py": "d60dd879090823c6b44bd1580d1ba4928a24015ec1e291109fdf7d85ce5d6635",
@@ -200,9 +214,11 @@
     "scripts/run_backend_schedules.py": "6f15b8fd586bfd67ddf57495204f7077fc7280fd56ce5684cb5298368c93d1a3",
     "scripts/screener_schedule.py": "bbd2bff972e863ad6040ebd00fce442f48486b0406d3270273619bdff254640e",
     "scripts/service_preflight.py": "1e36c941f12fb823ccd544ff642d48ea65b9ebe30766d79d938217a22c474c69",
-    "scripts/toto_runtime_smoke.py": "2f32e529aa81d28d69b8cedb04e23a06e5444ee0e6bf6185721f9fdc037cbb64",
+    "scripts/toto_runtime_smoke.py": "0d57356cd05a5add85e1594ba7b3fea914b718c19b2b4f9e6cf6621f7b287a7f",
     "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859",
-    "tests/test_service_preflight.py": "9b6361c465c95390f163f692de42e4b09201aea7bfaca00d20c5e8617228cb14"
+    "tests/runtime-controls-coverage.ini": "7e3aa0528adc7963f94cf1b21402e0f75f86a3b258be86b68946d7eff8057c05",
+    "tests/test_service_preflight.py": "9b6361c465c95390f163f692de42e4b09201aea7bfaca00d20c5e8617228cb14",
+    "tests/test_toto_loading.py": "805c3a3a988c31d7fc8ab79a02d8a5c11ad7e861d12f6647b5cef0122105d260"
   },
   "source_commit": "42f93feeb2fea375beef3be8dbce66162a811894"
 }
