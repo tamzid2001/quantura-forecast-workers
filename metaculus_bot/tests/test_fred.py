@@ -172,3 +172,19 @@ def test_fred_dynamic_economic_search_uses_provider_ids_only(monkeypatch):
     assert rows[0]['url'].endswith('/UNRATE')
     assert len(calls)==3
     assert 'Research context' in rows[0]['excerpt']
+
+
+def test_fred_emits_completed_series_before_another_fetch_can_stall(monkeypatch):
+    monkeypatch.setenv('FRED_API_KEY', 'a' * 32)
+    monkeypatch.setattr(fred, 'candidates', lambda q: ['UNRATE', 'GDP'])
+    completed = []
+    def request(path, params):
+        if params['series_id'] == 'GDP':
+            # Simulates termination before evidence() can return its full list.
+            raise RuntimeError('test interrupted second source')
+        return fetch(path, params)
+    with pytest.raises(RuntimeError, match='interrupted second source'):
+        fred.evidence(question(), fetch=request, emit=completed.append)
+    assert len(completed) == 1
+    assert completed[0]['url'] == fred.SERIES_URL + 'UNRATE'
+    assert json.loads(completed[0]['excerpt'])['units'] == 'Percent'

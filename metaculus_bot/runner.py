@@ -14,7 +14,7 @@ from .api import ApiError, Metaculus, RateLimited, competition_policy, eligible_
 from .checkpoint import Checkpoint, PrivateNoteLimit
 from .llm import CostPolicyViolation, FreeLLM, FreeQuota, InvalidModelOutput, NON_FORECAST_MODELS, free_llm_factory
 from .questions import already_submitted, context, payload, unpack
-from .research import evidence
+from .research import RESEARCH_TIMEOUT_SECONDS, REASONING_RESERVE_SECONDS, evidence
 from .time_series import definition, forecast
 
 MARKER = "QUANTURA_BOT_RECORD_V1"
@@ -200,6 +200,15 @@ def forecast_lifetimes(api):
             "expiry_unverified": sum(not r["expiry_verified"] for r in rows)}
 
 
+def research_deadline(question, generation_deadline):
+    now = time.monotonic()
+    deadline = min(now + RESEARCH_TIMEOUT_SECONDS, generation_deadline - REASONING_RESERVE_SECONDS)
+    if question.close_time is not None:
+        deadline = min(deadline, now + (question.close_time - utcnow()).total_seconds()
+                       - 180 - REASONING_RESERVE_SECONDS)
+    return deadline
+
+
 def run(args, api=None, llm_factory=free_llm_factory):
     budget = int(os.environ.get("METACULUS_RUN_BUDGET_SECONDS", "1800"))
     if not 180 <= budget <= 2280:
@@ -374,7 +383,8 @@ def run(args, api=None, llm_factory=free_llm_factory):
                         log("metaculus_llm_provider", service=getattr(llm, "service", "test"),
                             model=model.get("id"), paid_fallback=False)
                     llm.deadline = min(run_deadline - 120, time.monotonic() + 360)
-                    answer = llm.forecast(q, evidence(q))
+                    sources = evidence(q, deadline=research_deadline(q, llm.deadline))
+                    answer = llm.forecast(q, sources)
                     log("metaculus_generation", question_id=q.id_of_question, engine="free_llm",
                         model=answer.get("model"), cost_usd=answer.get("cost_usd"), abstained=bool(answer.get("abstain")))
                 record = {"question_id": q.id_of_question, "generated_at": utcnow().isoformat(), "answer": answer,

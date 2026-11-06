@@ -100,6 +100,41 @@ promotional or duplicate comments. Comments explain
 the forecast; leaderboard scores depend on resolved forecasting performance.
 Actions artifacts contain operational summaries, not private reasoning.
 
+### Bounded question research
+
+LLM research runs in a supervised Python child with a shared60-second maximum
+for all linked pages and optional FRED requests. The runner shortens that budget
+when necessary to reserve60 seconds for reasoning within its existing generation
+window and retain the existing180-second question-closing buffer. Expired
+research windows start no child. These are scheduling reserves, not a promise
+that every model call or submission can finish before closure.
+
+Each fully collected source is committed to a private in-memory JSONL pipe.
+On timeout the child is killed and reaped; only complete, validated source
+records are retained. FRED emits each completed series before requesting the
+next one. Partial JSON, oversized records and malformed outputs are rejected.
+The child receives only the question's text/criteria/fine print/background,
+certificate/platform settings and the optional FRED credential. It receives no
+Metaculus, GitHub or LLM credential. It cannot submit forecasts or comments.
+Public budget logs contain status, completed-source count and budget duration,
+never excerpts, source URLs or credentials. Missing research remains missing;
+the existing model abstention, free-only, private-note and duplicate checks apply.
+
+This addresses the documented difference between a Requests socket-inactivity
+[timeout](https://requests.readthedocs.io/en/latest/user/quickstart/#timeouts)
+and a total download deadline. Python's
+[subprocess timeout](https://docs.python.org/3/library/subprocess.html#subprocess.run)
+kills and waits for the child; initial OS process creation itself is not
+interruptible on every platform. This is not a real-time scheduling guarantee.
+The direct time-series history adapter is separate from this LLM research path.
+
+Validation: `python -m pytest -q metaculus_bot/tests`. The research-specific CI
+gate requires90% line/70% branch coverage and uploads nonempty Cobertura.
+A real subprocess regression stalls a child for30 seconds, interrupts it at a
+two-second deadline, verifies that its PID is reaped on POSIX, and retains its
+completed source. No network, model call, forecast or comment is involved in
+that test. This is reliability evidence, not a measured forecasting-score gain.
+
 The bounded restart policy permits, at most **five new private-note attempts per job** in the hosted profile (the local fallback is two)
 and **50 attempts per UTC day** in the hosted profile (the local fallback is 12) are permitted. The encrypted checkpoint reserves
 capacity before each network request, including ambiguous writes. These are

@@ -39,3 +39,21 @@ jobs:
           path: coverage.xml
           if-no-files-found: error
           retention-days: 7
+      - name: Verify bounded research and actual child timeout lifecycle
+        run: python -m pytest -q metaculus_bot/tests --cov=metaculus_bot.research --cov-branch --cov-fail-under=90 --cov-report=xml:research-coverage.xml --cov-report=term-missing
+      - name: Validate nonempty research coverage and branch threshold
+        run: |
+          python - <<'PY'
+          from xml.etree import ElementTree as E
+          r=E.parse('research-coverage.xml').getroot()
+          assert r.findall('.//class') and int(r.attrib['lines-covered'])>0
+          assert float(r.attrib['line-rate'])>=.90 and float(r.attrib['branch-rate'])>=.70
+          print('Research line coverage:',r.attrib['line-rate'],'branch:',r.attrib['branch-rate'])
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: metaculus-research-coverage
+          path: research-coverage.xml
+          if-no-files-found: error
+          retention-days: 7

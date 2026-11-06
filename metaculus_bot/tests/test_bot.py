@@ -263,7 +263,7 @@ def test_distribution_arithmetic_fault_does_not_abort_next_question(posts,monkey
             raise ZeroDivisionError('private diagnostic is not a public log')
         return real_payload(q,answer)
     monkeypatch.setattr(runner,'payload',validate)
-    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     monkeypatch.setenv('METACULUS_TOKEN','test-token')
     api=SimpleNamespace(identity=lambda:{'id':1,'username':'test'},posts=lambda p:[first,second],
                         own_forecasts=lambda ids:set(),comments=lambda *a:[])
@@ -440,7 +440,7 @@ def test_saved_abstentions_do_not_starve_new_questions(posts,monkeypatch,tmp_pat
         def __init__(self,key):pass
         def forecast(self,q,sources):self.calls+=1;return {'probability_yes':.2}
     from metaculus_bot import runner
-    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     monkeypatch.setenv('OPENROUTER_API_KEY','test')
     args=SimpleNamespace(scope='test',engine='llm',submit=False,max_questions=1,question_ids=[],report=str(tmp_path/'summary.json'))
     api=Api();result=run(args,api,Llm)
@@ -564,7 +564,7 @@ def test_new_forecasts_each_have_private_reasoning_and_tournament_receipts(posts
         def __init__(self,key):pass
         def forecast(self,q,sources):return {'probability_yes':.2,'reasoning':'Test explanation'}
     from metaculus_bot import runner
-    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     monkeypatch.setenv('METACULUS_PARTICIPATION_FORM_CONFIRMED','true')
     monkeypatch.setenv('METACULUS_SUBMISSIONS_APPROVED','true')
     monkeypatch.setenv('OPENROUTER_API_KEY','test')
@@ -602,7 +602,7 @@ def test_abstentions_and_invalid_forecasts_never_write_comments(posts,monkeypatc
     monkeypatch.setenv('METACULUS_PARTICIPATION_FORM_CONFIRMED','true')
     monkeypatch.setenv('METACULUS_TOKEN','test-token')
     monkeypatch.setenv('OPENROUTER_API_KEY','test')
-    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     api=SimpleNamespace(identity=lambda:{'id':1,'username':'test'},posts=lambda p:[sample],comments=lambda *a:[],own_forecasts=lambda ids:set(),
                         post=lambda *a:pytest.fail('Abstentions and invalid distributions must not write notes'))
     class Llm:
@@ -691,7 +691,7 @@ def test_batch_comment_cap_saves_next_answer_without_writing_it(posts,monkeypatc
     monkeypatch.setenv('METACULUS_PARTICIPATION_FORM_CONFIRMED','true')
     monkeypatch.setenv('METACULUS_TOKEN','test-token')
     monkeypatch.setenv('OPENROUTER_API_KEY','test')
-    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     class Api:
         submitted=set();writes=[]
         def identity(self):return {'id':1,'username':'test'}
@@ -720,7 +720,7 @@ def test_permission_denial_stops_batch_after_one_write(posts,monkeypatch,tmp_pat
     monkeypatch.setenv('METACULUS_PARTICIPATION_FORM_CONFIRMED','true')
     monkeypatch.setenv('METACULUS_TOKEN','test-token')
     monkeypatch.setenv('OPENROUTER_API_KEY','test')
-    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     writes=[]
     def denied(*args):
         writes.append(args[0]);raise ApiError('METACULUS_WRITE',status)
@@ -812,7 +812,7 @@ def test_unusable_generation_is_encrypted_and_not_regenerated(posts,monkeypatch,
     from metaculus_bot import runner,llm
     sample=next(copy.deepcopy(p) for p in posts if p.get('question',{}).get('type')=='binary')
     monkeypatch.setenv('METACULUS_TOKEN','test-token')
-    monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     api=SimpleNamespace(identity=lambda:{'id':1,'username':'test'},posts=lambda p:[sample],
         comments=lambda *a:[],own_forecasts=lambda ids:set(),post=lambda *a:pytest.fail('No unusable answer writes'))
     class Llm:
@@ -834,7 +834,7 @@ def test_moderation_routing_result_is_not_treated_as_a_forecast(posts,monkeypatc
     prior={'question_id':q.id_of_question,'answer':{'abstain':True,'generation_error':'INVALID_MODEL_JSON'},
            'unusable_response':{'model':'nvidia/nemotron-3.5-content-safety:free','choices':[{'message':{'content':'safety label'}}]}}
     Checkpoint(path,'test-token').put(prior)
-    monkeypatch.setenv('METACULUS_TOKEN','test-token');monkeypatch.setattr(runner,'evidence',lambda q:[])
+    monkeypatch.setenv('METACULUS_TOKEN','test-token');monkeypatch.setattr(runner,'evidence',lambda q, **kwargs:[])
     api=SimpleNamespace(identity=lambda:{'id':1,'username':'test'},posts=lambda p:[sample],
         comments=lambda *a:[],own_forecasts=lambda ids:set(),post=lambda *a:pytest.fail('Read-only test'))
     calls=[]
