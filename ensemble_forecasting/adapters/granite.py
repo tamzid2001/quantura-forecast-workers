@@ -8,6 +8,7 @@ from ..capabilities import MODEL_REGISTRY
 from ..schemas import ForecastRequest, ModelForecast, PreparedSeries, canonical_quantile_string
 from ..validation import monotonic_rearrangement
 from .native_foundation import checkpoint_identity
+from .checkpoint_access import checkpoint_token
 from .base import ForecastAdapter, ModelExecutionError, cleanup_memory, hf_token, package_versions
 
 
@@ -27,7 +28,7 @@ class GraniteAdapter(ForecastAdapter):
             checkpoint, revision = checkpoint_identity(self.model_id, request)
             model = PatchTSTFMForPrediction.from_pretrained(
                 checkpoint,
-                token=hf_token(),
+                token=checkpoint_token(checkpoint, hf_token()),
                 low_cpu_mem_usage=True,
                 **({"revision": revision} if revision else {}),
             ).to("cpu").eval()

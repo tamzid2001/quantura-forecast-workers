@@ -5,8 +5,7 @@ the pinned hub dependency. Its local loader explicitly constructs that object.
 Only configuration and safetensors are downloaded; no repository code executes.
 """
 from pathlib import Path
-
-PUBLIC_CHECKPOINT = "Datadog/Toto-2.0-4m"
+from .checkpoint_access import checkpoint_token
 
 
 def load_toto_model(checkpoint: str, revision: str | None, *, token: str | None = None):
@@ -19,7 +18,7 @@ def load_toto_model(checkpoint: str, revision: str | None, *, token: str | None 
         # This inspected Apache-2.0 checkpoint is public and needs no account.
         # Explicit False prevents an expired ambient HF_TOKEN from breaking it.
         # Custom/private checkpoints retain their supplied authentication.
-        token=False if checkpoint == PUBLIC_CHECKPOINT else token,
+        token=checkpoint_token(checkpoint, token),
         allow_patterns=["config.json", "*.safetensors", "*.safetensors.index.json"],
     ))
     if not (snapshot / "config.json").is_file():

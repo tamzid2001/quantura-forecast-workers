@@ -5,6 +5,22 @@ from unittest.mock import Mock, patch
 import pytest
 
 from ensemble_forecasting.adapters.toto_loader import load_toto_model
+from ensemble_forecasting.adapters.checkpoint_access import checkpoint_token
+
+
+@pytest.mark.parametrize("checkpoint,expected", [
+    ("Datadog/Toto-2.0-4m", False),
+    ("ibm-granite/granite-timeseries-patchtst-fm-r2", False),
+    ("private-org/model", "fixture-credential"),
+    ("private-org/Toto-2.0-4m", "fixture-credential"),
+    ("ibm-granite/granite-timeseries-patchtst-fm-r2-private", "fixture-credential"),
+])
+def test_only_exact_inspected_public_ids_disable_account_authentication(checkpoint, expected):
+    assert checkpoint_token(checkpoint, "fixture-credential") == expected
+
+
+def test_private_checkpoint_without_a_credential_does_not_gain_one():
+    assert checkpoint_token("private-org/model", None) is None
 
 
 @pytest.mark.parametrize("sharded", [False, True])
