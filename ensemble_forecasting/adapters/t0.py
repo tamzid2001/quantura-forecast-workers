@@ -8,6 +8,7 @@ from ..capabilities import MODEL_REGISTRY
 from ..schemas import ForecastRequest, ModelForecast, PreparedSeries
 from .base import ForecastAdapter, ModelExecutionError, cleanup_memory, device_name, hf_token, package_versions
 from .native_foundation import checkpoint_identity, native_output
+from .checkpoint_access import checkpoint_location, checkpoint_token
 
 
 class T0Adapter(ForecastAdapter):
@@ -28,7 +29,11 @@ class T0Adapter(ForecastAdapter):
             registry = MODEL_REGISTRY["models"][self.model_id]
             levels = tuple(registry["quantileSupport"]["native"])
             length = min(request.context_length or 512, len(series.transformed_values), registry["maxContextLength"])
-            model = T0Forecaster.from_pretrained(checkpoint, revision=revision, token=hf_token()).to(device).eval()
+            location = checkpoint_location(checkpoint, revision, token=hf_token())
+            model = T0Forecaster.from_pretrained(
+                location, token=checkpoint_token(checkpoint, hf_token()),
+                **({"local_files_only": True} if location != checkpoint else {"revision": revision} if revision else {})
+            ).to(device).eval()
             context = np.asarray(series.transformed_values[-length:], dtype=np.float32)[None, :]
             with torch.inference_mode():
                 # Request native knots, then interpolate inside their range only.
