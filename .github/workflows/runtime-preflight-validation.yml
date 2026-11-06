@@ -1,0 +1,35 @@
+name: Gateway preflight validation
+on:
+  pull_request:
+    paths: ['scripts/service_preflight.py', 'tests/test_service_preflight.py', '.github/workflows/*screener.yml', '.github/workflows/metered-billing.yml', '.github/workflows/runtime-preflight-validation.yml']
+  push:
+    branches: [main]
+    paths: ['scripts/service_preflight.py', 'tests/test_service_preflight.py', '.github/workflows/*screener.yml', '.github/workflows/metered-billing.yml', '.github/workflows/runtime-preflight-validation.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - run: python -m pip install pytest==9.1.1 pytest-cov==7.1.0
+      - run: python -m pytest -q tests/test_service_preflight.py --cov=scripts.service_preflight --cov-branch --cov-fail-under=90 --cov-report=xml:coverage.xml --cov-report=term-missing
+      - name: Validate nonempty executed report and branch threshold
+        run: |
+          python - <<'PY'
+          from xml.etree import ElementTree as E
+          r=E.parse('coverage.xml').getroot()
+          assert int(r.attrib['lines-covered'])>0 and r.findall('.//class')
+          assert float(r.attrib['line-rate'])>=.90 and float(r.attrib['branch-rate'])>=.70
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gateway-preflight-coverage
+          path: coverage.xml
+          if-no-files-found: error
+          retention-days: 7

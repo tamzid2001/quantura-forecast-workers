@@ -95,6 +95,9 @@ jobs:
           args=()
           if [[ "$EVENT_NAME" == workflow_dispatch && "$SKIP_IF_PUBLISHED" != true ]]; then args+=(--manual); fi
           python scripts/screener_schedule.py "${args[@]}" --publication-manifest screener-work/published/run-manifest.json >> "$GITHUB_OUTPUT"
+      - name: Check gateway before universe generation and inference fan-out
+        if: steps.session.outputs.should_run == 'true'
+        run: python scripts/service_preflight.py
       - name: Generate S&P 500, Nasdaq, SPY, and earnings universe
         if: steps.session.outputs.should_run == 'true'
         env:
