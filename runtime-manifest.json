@@ -81,6 +81,26 @@
       "scope": "Exact inspected public Toto/Granite IDs only; private authentication and all license/capability gates retained.",
       "source_commit": "c6ec81bdb0749d19b7f72fa94f1e9136f7e6024c"
     },
+    "remaining_native_diagnostics": {
+      "files": [
+        "scripts/toto_runtime_smoke.py",
+        ".github/workflows/toto-runtime-smoke.yml"
+      ],
+      "scope": "Bounded CPU fixture choices and explicit noncommercial TimesFM evaluation; production license gates unchanged.",
+      "source_commit": "81e1375454715a13fd85ba23a0dc1c84484b4720"
+    },
+    "remaining_sdk_snapshots": {
+      "files": [
+        "ensemble_forecasting/adapters/checkpoint_access.py",
+        "ensemble_forecasting/adapters/timesfm.py",
+        "ensemble_forecasting/adapters/timestral.py",
+        "ensemble_forecasting/adapters/t0.py",
+        "tests/test_toto_loading.py",
+        ".github/workflows/runtime-preflight-validation.yml"
+      ],
+      "scope": "Reviewed public snapshots only; TimesFM license/production gates stay before native loading. Real verification pending.",
+      "source_commit": "812f55a42386e42b068f5d40b717095de7f20274"
+    },
     "sports_paper": "5c407108629bb0bf3394dec81b9e578a35df4fcd",
     "toto_cpu_verification": {
       "files": [
@@ -151,14 +171,14 @@
     ".github/workflows/metaculus-readiness.yml": "2db9ddfec700da79c787ca643abc35bc71efea0aa59c4baad16729e303929667",
     ".github/workflows/metaculus-watchdog.yml": "edfc270dc523b09ce6e7c3c552e8cef049859fa8b2d54a1ef35f8425b0653da6",
     ".github/workflows/metered-billing.yml": "ffe59eef6bbed24e280fee6f32e179e0b8f67c1547004b4a84dff2c36ce606eb",
-    ".github/workflows/runtime-preflight-validation.yml": "725b1ab295a3868a98b089929feb59e1c99716fc633580ddedbed7da8906b5b2",
+    ".github/workflows/runtime-preflight-validation.yml": "4f7091d14d6ab7395ef0ca193ac464196df3a0beeb7794eb47563df74a0e5715",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
     ".github/workflows/sports-month-backtest.yml": "2820397d795d92547dd28598135631ccdd29feb1781d1ad73d3251ed34a47eca",
     ".github/workflows/sports-month-watchdog.yml": "0c75a88cebf1f92256d03791e176dec8afc8015a0703c2cc97ad7f392f6d2a65",
     ".github/workflows/sports-paper-validation.yml": "c2598229242e5858d9e589d6be5f233a3ed203fbef396826dd23059959eb2647",
     ".github/workflows/sports-strategy-research.yml": "322e715b9d6569ab455b1d2a3f5c7bf319f8a38d7f1328a8b9a2fc2a685158bf",
     ".github/workflows/stock-screener.yml": "0976e7ec39f5aba142141ac1a3edc23f449e738764896ccb2419a5a88f62ec14",
-    ".github/workflows/toto-runtime-smoke.yml": "bbd6ce42db20d1d522f459362bacf8ec5b71f51af0fd81b41ef0567bf5e7a479",
+    ".github/workflows/toto-runtime-smoke.yml": "001e80d23b65f5c43f98db5ff0f2ef879575b4ea476ca5efeacb5b2896ad43af",
     ".gitignore": "f90e6c1c1c7f24d481b2ab879060fea41781842e5fdcbac52e81c800174051e6",
     "CHANGELOG.md": "531130ce7c506d941afa50c8e527bfc8aed80b5cca8ea30c8649d0550b882c27",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
@@ -178,15 +198,15 @@
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
     "ensemble_forecasting/adapters/base.py": "03c44461cef246ecc358032cdd34e90106fe3f6c30a99e4401d98af564426bf1",
-    "ensemble_forecasting/adapters/checkpoint_access.py": "3cc9fb8bbd86d395e9d66dba7bfd52870d52e7b588196a09c71f469c4ff7a4d6",
+    "ensemble_forecasting/adapters/checkpoint_access.py": "50bb24925ee1e1e0674acbad65e790bd0aa07190e556ef04a4501afb6abd2344",
     "ensemble_forecasting/adapters/chronos.py": "13405ebeb7bba52e2ecbcddd8cce1c0d6504aba95eafe39a65b995edc6e8ad34",
     "ensemble_forecasting/adapters/granite.py": "70993804e1ee8265bb2e4cd4bb95b1405a51ef3187341dc96cce4dd2fc3dcc44",
     "ensemble_forecasting/adapters/mock.py": "c0b0508dcaa22f41765bf51dd12a8a3d93a1efefa0b5aa08f29d48c4fc7a351f",
     "ensemble_forecasting/adapters/native_foundation.py": "be67e291384741f7bfb5e018f4252d318eb5f08a53ad5ab903544522e52baf1f",
     "ensemble_forecasting/adapters/prophet.py": "6a3ae37427a3f3b2112cf00329b08b25b599cd377a8eea4d82573f30ccc43bff",
-    "ensemble_forecasting/adapters/t0.py": "0e0f1f7664f081f8f6767e359c459ac18082817a3db2339ccf4f2f28a5c8f6dc",
-    "ensemble_forecasting/adapters/timesfm.py": "1e6ef12db47856da6b19cacf221bc13d775fb2366cb89e1d923b200eb059a2d3",
-    "ensemble_forecasting/adapters/timestral.py": "beff0e518c970d38521347820e3d2f4f284ffdfe3872189fe683749de036dca0",
+    "ensemble_forecasting/adapters/t0.py": "4dba993fa3f3ca6f1e854969c5e22c13b1530c33745c6e177a673cd27707f10a",
+    "ensemble_forecasting/adapters/timesfm.py": "80aa400212fa1d346b7cb79d93f4768bccfca554862d3931398567175d6299dd",
+    "ensemble_forecasting/adapters/timestral.py": "45bc78d7ba90f0a78ee0623e266e3a8c352ba275fb8ca4e6f6b3f98c59941464",
     "ensemble_forecasting/adapters/toto.py": "8e202d2958c9dfafd251679b5c920febd3c4964835ec740c6a515b2907e3e70a",
     "ensemble_forecasting/adapters/toto_loader.py": "9d2e7cd77d0f1133685c3a824aa1191853dab1e7c3e5a4f904ffea5f8b5cb9ec",
     "ensemble_forecasting/calendars.py": "3de009f0fc49a333d8385f834c44d5d1e95556b001ab673efcf1e9978fbbef66",
@@ -287,11 +307,11 @@
     "scripts/run_backend_schedules.py": "6f15b8fd586bfd67ddf57495204f7077fc7280fd56ce5684cb5298368c93d1a3",
     "scripts/screener_schedule.py": "bbd2bff972e863ad6040ebd00fce442f48486b0406d3270273619bdff254640e",
     "scripts/service_preflight.py": "1e36c941f12fb823ccd544ff642d48ea65b9ebe30766d79d938217a22c474c69",
-    "scripts/toto_runtime_smoke.py": "289b90a875c34ddeacd64ab7f613afd08bda8e1aeb97a3e7e23f6583ad6de02f",
+    "scripts/toto_runtime_smoke.py": "7b7636911abf9153da1b98ba7c869cc2cc0d32266fdd1aefeaf83f302ff10494",
     "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859",
     "tests/runtime-controls-coverage.ini": "a39d49ff753ebc9e7968df289063ba4ebe396c001018967046f31b5fab53fe23",
     "tests/test_service_preflight.py": "9b6361c465c95390f163f692de42e4b09201aea7bfaca00d20c5e8617228cb14",
-    "tests/test_toto_loading.py": "b58227ba781869131f2b8a3d0527dfe505f61862e298aa1bbb3d1f927e333954"
+    "tests/test_toto_loading.py": "1e2a182ab22523e3a92583024d11bad1422abc3739fbcc30963e616797db5447"
   },
   "source_commit": "42f93feeb2fea375beef3be8dbce66162a811894"
 }

@@ -8,6 +8,7 @@ from ..capabilities import MODEL_REGISTRY, timesfm_availability
 from ..schemas import ForecastRequest, ModelForecast, PreparedSeries
 from ..validation import interpolate_native_quantiles
 from .native_foundation import checkpoint_identity
+from .checkpoint_access import checkpoint_location, checkpoint_token
 from .base import (
     ForecastAdapter,
     ModelExecutionError,
@@ -15,6 +16,7 @@ from .base import (
     device_name,
     is_cuda_oom,
     package_versions,
+    hf_token,
 )
 
 NATIVE_LEVELS = tuple(round(value / 10, 1) for value in range(1, 10))
@@ -29,8 +31,12 @@ class TimesFMAdapter(ForecastAdapter):
 
         evaluator = None
         try:
+            location = checkpoint_location(checkpoint, revision, token=hf_token())
             evaluator = TimesFM3Evaluator(
-                ModelConfig(checkpoint_path=checkpoint, per_core_batch_size=1, device=device, revision=revision)
+                ModelConfig(checkpoint_path=location, per_core_batch_size=1, device=device,
+                            revision=revision if location == checkpoint else None,
+                            token=checkpoint_token(checkpoint, hf_token()),
+                            local_files_only=location != checkpoint)
             )
             outputs = list(
                 evaluator.predict_batch(

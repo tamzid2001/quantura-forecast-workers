@@ -10,6 +10,9 @@ PUBLIC_CHECKPOINTS = frozenset({
     "Datadog/Toto-2.0-4m",
     "ibm-granite/granite-timeseries-patchtst-fm-r2",
     "amazon/chronos-2",
+    "google/timesfm-3.0-pytorch",
+    "mistralai/Timestral-209M",
+    "theforecastingcompany/t0-gamma",
 })
 
 

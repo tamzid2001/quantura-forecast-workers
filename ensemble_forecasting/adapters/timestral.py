@@ -8,6 +8,7 @@ from ..capabilities import MODEL_REGISTRY
 from ..schemas import ForecastRequest, ModelForecast, PreparedSeries
 from .base import ForecastAdapter, ModelExecutionError, cleanup_memory, device_name, hf_token, package_versions
 from .native_foundation import checkpoint_identity, native_output
+from .checkpoint_access import checkpoint_location, checkpoint_token
 
 
 class TimestralAdapter(ForecastAdapter):
@@ -27,7 +28,9 @@ class TimestralAdapter(ForecastAdapter):
             device = device_name("auto")
             length = min(request.context_length or 512, len(series.transformed_values),
                          MODEL_REGISTRY["models"][self.model_id]["maxContextLength"])
-            model = TimestralForecaster.from_pretrained(checkpoint, revision=revision, token=hf_token(),
+            location = checkpoint_location(checkpoint, revision, token=hf_token())
+            model = TimestralForecaster.from_pretrained(location, token=checkpoint_token(checkpoint, hf_token()),
+                                                        **({"local_files_only": True} if location != checkpoint else {"revision": revision} if revision else {}),
                                                         device=device, max_context=length)
             with torch.inference_mode():
                 output = model.forecast(np.asarray(series.transformed_values[-length:], dtype=np.float32),

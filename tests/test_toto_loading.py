@@ -12,6 +12,9 @@ from ensemble_forecasting.adapters.checkpoint_access import checkpoint_location,
     ("Datadog/Toto-2.0-4m", False),
     ("ibm-granite/granite-timeseries-patchtst-fm-r2", False),
     ("amazon/chronos-2", False),
+    ("google/timesfm-3.0-pytorch", False),
+    ("mistralai/Timestral-209M", False),
+    ("theforecastingcompany/t0-gamma", False),
     ("private-org/model", "fixture-credential"),
     ("private-org/Toto-2.0-4m", "fixture-credential"),
     ("ibm-granite/granite-timeseries-patchtst-fm-r2-private", "fixture-credential"),
@@ -22,6 +25,28 @@ def test_only_exact_inspected_public_ids_disable_account_authentication(checkpoi
 
 def test_private_checkpoint_without_a_credential_does_not_gain_one():
     assert checkpoint_token("private-org/model", None) is None
+
+
+@pytest.mark.parametrize("access,commercial,code", [
+    ("false", "true", "LICENSE_ACCESS_NOT_APPROVED"),
+    ("true", "false", "LICENSE_COMMERCIAL_LICENSE_REQUIRED"),
+])
+def test_public_download_policy_does_not_bypass_timesfm_production_gates(monkeypatch, access, commercial, code):
+    from ensemble_forecasting.adapters.timesfm import TimesFMAdapter
+    from ensemble_forecasting.adapters.base import ModelExecutionError
+    from ensemble_forecasting.schemas import ForecastRequest
+
+    monkeypatch.setenv("TIMESFM_HF_ACCESS_APPROVED", access)
+    monkeypatch.setenv("TIMESFM_COMMERCIAL_LICENSED", commercial)
+    monkeypatch.setenv("ALLOW_NONCOMMERCIAL_TIMESFM", "true")
+    download = Mock(side_effect=AssertionError("No download permitted"))
+    monkeypatch.setattr("ensemble_forecasting.adapters.timesfm.checkpoint_location", download)
+    request = ForecastRequest.from_dict({"prediction_length": 7, "horizon_mode": "frequency_periods", "quantiles": [.1,.5,.9],
+        "models": {"timesfm": {"enabled": True, "weight": 1}}, "runtime_mode": "production"})
+    with pytest.raises(ModelExecutionError) as error:
+        TimesFMAdapter().forecast(None, (), request)
+    assert error.value.code == code
+    download.assert_not_called()
 
 
 @pytest.mark.parametrize("checkpoint", ["Datadog/Toto-2.0-4m", "ibm-granite/granite-timeseries-patchtst-fm-r2", "amazon/chronos-2", "private-org/model"])

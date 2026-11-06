@@ -16,7 +16,7 @@ import traceback
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--model',choices=['toto','granite','chronos'],default='toto')
+    parser.add_argument('--model',choices=['toto','granite','chronos','timesfm','timestral','t0'],default='toto')
     model_id=parser.parse_args(argv).model
     output=Path('artifacts/toto-runtime-smoke.json');output.parent.mkdir(exist_ok=True)
     report={'provenance':'FIXTURE','execution':'real_cpu_model_sdk','hardware':'CPU',
@@ -27,17 +27,25 @@ def main(argv=None):
         from ensemble_forecasting.adapters.toto import TotoAdapter,toto_checkpoint
         from ensemble_forecasting.adapters.granite import GraniteAdapter
         from ensemble_forecasting.adapters.chronos import ChronosAdapter
+        from ensemble_forecasting.adapters.timesfm import TimesFMAdapter
+        from ensemble_forecasting.adapters.timestral import TimestralAdapter
+        from ensemble_forecasting.adapters.t0 import T0Adapter
         from ensemble_forecasting.adapters.toto_loader import load_toto_model
         from ensemble_forecasting.adapters.native_foundation import checkpoint_identity
         from ensemble_forecasting.schemas import ForecastRequest,PreparedSeries
         torch.set_num_threads(2)
         torch.manual_seed(20261105)
-        packages={'toto':'toto-2','granite':'granite-tsfm','chronos':'chronos-forecasting'}
-        adapters={'toto':TotoAdapter,'granite':GraniteAdapter,'chronos':ChronosAdapter}
+        packages={'toto':'toto-2','granite':'granite-tsfm','chronos':'chronos-forecasting',
+                  'timesfm':'timesfm','timestral':'timestral','t0':'tfc-t0'}
+        adapters={'toto':TotoAdapter,'granite':GraniteAdapter,'chronos':ChronosAdapter,
+                  'timesfm':TimesFMAdapter,'timestral':TimestralAdapter,'t0':T0Adapter}
         report['packages']={p:importlib.metadata.version(p) for p in [packages[model_id],'torch','huggingface-hub']}
         request=ForecastRequest.from_dict({'prediction_length':7,'horizon_mode':'frequency_periods',
             'quantiles':[.01,.25,.5,.75,.9,.99],'transform':'none','context_length':512,
-            'models':{model_id:{'enabled':True,'weight':1}},'frequency':'1D','calendar':'NONE'})
+            'models':{model_id:{'enabled':True,'weight':1}},'frequency':'1D','calendar':'NONE',
+            'runtime_mode':'test'})
+        report['runtime_mode']='test'
+        report['evaluation_only']=model_id=='timesfm'
         checkpoint,revision=toto_checkpoint(request) if model_id=='toto' else checkpoint_identity(model_id,request)
         report.update(checkpoint=checkpoint,revision=revision,stage='native_checkpoint_load')
         if model_id=='toto':
@@ -61,7 +69,7 @@ def main(argv=None):
             adapter=adapters[model_id]()
             result=adapter.forecast(series,tuple((now+timedelta(days=i)).isoformat() for i in range(7)),request)
             result.validate()
-            if model_id=='toto':
+            if model_id in ('toto','timesfm'):
                 assert .01 not in result.available_quantiles and .99 not in result.available_quantiles
             report['adapter_cases'].append({'genuine_fixture_context_rows':size,
                                            'available_quantiles':list(result.available_quantiles),
