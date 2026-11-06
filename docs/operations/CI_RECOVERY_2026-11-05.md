@@ -34,7 +34,7 @@ References: [GitHub Contents updates and conflicts](https://docs.github.com/en/r
 The new Toto diagnostic initially failed GitHub validation before any model executed: `runner.temp` is unavailable in job-level `env`. Its cache directory is now defined in step-level `env`. Gateway preflight CI runs actionlint1.7.12 against every worker workflow, with its Linux release archive verified against the pinned upstream SHA256. All workflow changes trigger this gate. This verifies context availability as well as YAML syntax; it is not evidence of a successful SDK diagnostic.
 
 ### Toto checkpoint-loading correction
-The real CPU diagnostic run42143193261 failed at `native_checkpoint_load` with a `TypeError` inside the pinned Hugging Face Hub mixin before inference. The inspected toto-2 2.0.0 wheel delegates remote construction to that mixin, whereas its local loader explicitly builds `Toto2ModelConfig`. The adapter now downloads only config/safetensors for the requested checkpoint and immutable revision, then uses the SDK's local loader with `local_files_only=True`. A missing config or weights fails before SDK construction; it cannot fall back to another model. No upstream source, weights or credentials are committed.
+The real CPU diagnostic run42143193261 failed at `native_checkpoint_load` with a `TypeError` inside the pinned Hugging Face Hub mixin before inference. The inspected toto-2 2.0.0 wheel delegates remote construction to that mixin, whereas its local loader explicitly builds `Toto2ModelConfig`. The initial authenticated failure does not establish that anonymous remote loading is universally broken; the tested fix deliberately uses the supported local snapshot path. The adapter now downloads only config/safetensors for the requested checkpoint and immutable revision, then uses the SDK's local loader with `local_files_only=True`. A missing config or weights fails before SDK construction; it cannot fall back to another model. No upstream source, weights or credentials are committed.
 
 Eight offline loader control cases pass (not model execution), with100% executed line/branch coverage for the loader. The current checkpoint and saved revision tests plus export-boundary test pass. The real native forecast and both512/511-row adapter paths must pass in the rerun before claiming recovery. The frozen historical replay runtime remains unchanged.
 
@@ -44,3 +44,25 @@ The next diagnostic42143833591 received HTTP401 during the authenticated snapsho
 Run42144209665 passed real CPU execution with toto-2 2.0.0, torch2.11.0+cpu and huggingface-hub1.30.0. The unchanged pinned4M revision produced finite native shape(9,1,1,7), then the actual adapter passed both512 and511 genuine observation cases. P01/P99 remained unavailable instead of being fabricated beyond the model's native support. No market forecasts or orders were published. The public workflow controls gate also passed. This validates the isolated Toto repair, not every model or the entire live screener.
 
 The private source's loader tests run with the existing forecasting job's scientific dependencies; the independent MiniBench job retains its lightweight dependency set and still checks export boundaries and gateway controls.
+
+## Native foundation-model follow-up and measured results
+
+The full perpetual replay42144923691 progressed beyond Toto but failed Granite. Real CPU diagnostics42145518125/42145889207 and42146086225 isolated HTTP401 inside remote Granite/Chronos SDK loading, including a Chronos adapter-config probe. Anonymous Hugging Face API/config requests confirmed the exact pinned repositories are public and ungated. Passing `token=False` alone did not resolve those native SDK failures.
+
+`checkpoint_access.py` now downloads only config and safetensors for the exact requested revision and validates required files before loading. Reviewed public Toto4M, Granite-r2 and Chronos2 use explicit anonymous access; other model IDs retain authentication. Granite/Chronos use local-only native loading for these reviewed snapshots. Private/custom Granite/Chronos keep their existing remote loading semantics. Missing or denied data never causes another checkpoint or model to be substituted. No executable Hub repository code is downloaded.
+
+Real CPU runs on the unchanged pinned production SDK environment all passed:
+
+| Model | Run | Actual result |
+|---|---|---|
+| Toto4M |42146498268|Native finite9x1x1x7 output; actual adapter512/511-row cases; unsupportedP01/P99 stay unavailable.|
+| IBM Granite PatchTST-FM-r2 |42146492773|Actual512/511-row adapter forecasts; six requested quantiles across seven steps.|
+| Amazon Chronos2 |42146495361|Actual512/511-row adapter forecasts; six supported quantiles across seven steps.|
+
+These use declared synthetic fixtures, not market forecasts, GPUs, live orders or profitability measurements. The entire seven-model production path still requires an independent successful run. No forecast weights or production license/capability checks changed.
+
+Commands: `python -m scripts.toto_runtime_smoke --model toto` (or `granite`, `chronos`), in the existing hash-locked production SDK environment. The manual `toto-runtime-smoke.yml` workflow accepts the same bounded choice. It produces sanitized exception type/location/status evidence, never raw exception messages, credentials or customer input.
+
+Offline controls:25 tests+4 subtests; snapshot/access and Toto local-loader modules100% executed line/branch coverage. The historical mocked Chronos quantile test now stubs the new snapshot I/O boundary explicitly; it does not claim model execution. The separate real CPU runs above supply that evidence. Complete local source domain regression:1,401 tests passed,29 explicit skips and59 subtests passed. The local environment needed the production-locked storage SDK and calendar/SciPy dependencies before this broader run. No cloud API operation was executed by these offline tests.
+
+Inspected references: [IBM model and dual Apache2/OpenMDW licensing](https://huggingface.co/ibm-granite/granite-timeseries-patchtst-fm-r2), [Amazon Chronos2 model](https://huggingface.co/amazon/chronos-2), [Datadog Toto4M model](https://huggingface.co/Datadog/Toto-2.0-4m). The installed granite-tsfm0.3.9 wheel's real forward/output signatures were inspected. No weights or upstream implementation source are committed.

@@ -1,7 +1,8 @@
 """Load the pinned Toto 2 SDK through its supported local-snapshot path.
 
-The 2.0.0 remote Hub mixin does not construct Toto2ModelConfig correctly with
-the pinned hub dependency. Its local loader explicitly constructs that object.
+Observed remote loading in the pinned2.0.0 environment failed during Hub
+mixin construction. The local loader explicitly builds Toto2ModelConfig; the
+verified snapshot path also avoids remote SDK configuration probes.
 Only configuration and safetensors are downloaded; no repository code executes.
 """
 from .checkpoint_access import download_safetensors_snapshot
