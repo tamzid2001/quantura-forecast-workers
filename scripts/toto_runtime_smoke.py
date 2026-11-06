@@ -5,6 +5,7 @@ Failure diagnostics contain stage, exception types and code locations only.
 """
 from __future__ import annotations
 
+import argparse
 from datetime import datetime,timedelta,timezone
 import importlib.metadata
 import json
@@ -13,34 +14,40 @@ from pathlib import Path
 import traceback
 
 
-def main():
+def main(argv=None):
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--model',choices=['toto','granite'],default='toto')
+    model_id=parser.parse_args(argv).model
     output=Path('artifacts/toto-runtime-smoke.json');output.parent.mkdir(exist_ok=True)
     report={'provenance':'FIXTURE','execution':'real_cpu_model_sdk','hardware':'CPU',
-            'status':'failed','stage':'import','market_forecasts_published':0,'live_orders':0}
+            'model':model_id,'status':'failed','stage':'import','market_forecasts_published':0,'live_orders':0}
     try:
         import numpy as np
         import torch
         from ensemble_forecasting.adapters.toto import TotoAdapter,toto_checkpoint
+        from ensemble_forecasting.adapters.granite import GraniteAdapter
         from ensemble_forecasting.adapters.toto_loader import load_toto_model
+        from ensemble_forecasting.adapters.native_foundation import checkpoint_identity
         from ensemble_forecasting.schemas import ForecastRequest,PreparedSeries
         torch.set_num_threads(2)
         torch.manual_seed(20261105)
-        report['packages']={p:importlib.metadata.version(p) for p in ['toto-2','torch','huggingface-hub']}
+        report['packages']={p:importlib.metadata.version(p) for p in ['toto-2' if model_id=='toto' else 'granite-tsfm','torch','huggingface-hub']}
         request=ForecastRequest.from_dict({'prediction_length':7,'horizon_mode':'frequency_periods',
             'quantiles':[.01,.25,.5,.75,.9,.99],'transform':'none','context_length':512,
-            'models':{'toto':{'enabled':True,'weight':1}},'frequency':'1D','calendar':'NONE'})
-        checkpoint,revision=toto_checkpoint(request)
+            'models':{model_id:{'enabled':True,'weight':1}},'frequency':'1D','calendar':'NONE'})
+        checkpoint,revision=toto_checkpoint(request) if model_id=='toto' else checkpoint_identity(model_id,request)
         report.update(checkpoint=checkpoint,revision=revision,stage='native_checkpoint_load')
-        model=load_toto_model(checkpoint,revision,token=os.environ.get('HF_TOKEN')).to('cpu').eval()
-        target=torch.linspace(1.,2.,64).reshape(1,1,-1)
-        with torch.inference_mode():
-            report['stage']='native_forecast'
-            native=model.forecast({'target':target,'target_mask':torch.ones_like(target,dtype=torch.bool),
-                                   'series_ids':torch.zeros((1,1),dtype=torch.long)},
-                                  horizon=7,decode_block_size=None,has_missing_values=False)
-        assert tuple(native.shape)==(9,1,1,7) and torch.isfinite(native).all()
-        report['native_shape']=list(native.shape)
-        del model
+        if model_id=='toto':
+            model=load_toto_model(checkpoint,revision,token=os.environ.get('HF_TOKEN')).to('cpu').eval()
+            target=torch.linspace(1.,2.,64).reshape(1,1,-1)
+            with torch.inference_mode():
+                report['stage']='native_forecast'
+                native=model.forecast({'target':target,'target_mask':torch.ones_like(target,dtype=torch.bool),
+                                       'series_ids':torch.zeros((1,1),dtype=torch.long)},
+                                      horizon=7,decode_block_size=None,has_missing_values=False)
+            assert tuple(native.shape)==(9,1,1,7) and torch.isfinite(native).all()
+            report['native_shape']=list(native.shape)
+            del model
         report['adapter_cases']=[]
         for size in [512,511]:
             report['stage']='adapter_context_'+str(size)
@@ -48,9 +55,11 @@ def main():
             now=datetime(2026,11,5,tzinfo=timezone.utc)
             times=tuple((now-timedelta(days=size-i)).isoformat() for i in range(size))
             series=PreparedSeries(times,values,values,'none','1D','UTC','fixture-not-market-data')
-            result=TotoAdapter().forecast(series,tuple((now+timedelta(days=i)).isoformat() for i in range(7)),request)
+            adapter=TotoAdapter() if model_id=='toto' else GraniteAdapter()
+            result=adapter.forecast(series,tuple((now+timedelta(days=i)).isoformat() for i in range(7)),request)
             result.validate()
-            assert .01 not in result.available_quantiles and .99 not in result.available_quantiles
+            if model_id=='toto':
+                assert .01 not in result.available_quantiles and .99 not in result.available_quantiles
             report['adapter_cases'].append({'genuine_fixture_context_rows':size,
                                            'available_quantiles':list(result.available_quantiles),
                                            'shape':list(result.quantile_matrix.shape)})

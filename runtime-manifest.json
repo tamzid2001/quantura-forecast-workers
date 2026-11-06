@@ -1,5 +1,13 @@
 {
   "component_sources": {
+    "granite_diagnostic": {
+      "files": [
+        "scripts/toto_runtime_smoke.py",
+        ".github/workflows/toto-runtime-smoke.yml"
+      ],
+      "scope": "Separate real CPU fixture diagnostic for the newly exposed Granite failure; no production forecast or model substitution.",
+      "source_commit": "b6a169db23f352b308a4a5d609d4f0adcf7ca699"
+    },
     "metaculus_bot": {
       "files": [
         "docs/metaculus-bot.md",
@@ -94,7 +102,7 @@
     ".github/workflows/sports-paper-validation.yml": "c2598229242e5858d9e589d6be5f233a3ed203fbef396826dd23059959eb2647",
     ".github/workflows/sports-strategy-research.yml": "322e715b9d6569ab455b1d2a3f5c7bf319f8a38d7f1328a8b9a2fc2a685158bf",
     ".github/workflows/stock-screener.yml": "0976e7ec39f5aba142141ac1a3edc23f449e738764896ccb2419a5a88f62ec14",
-    ".github/workflows/toto-runtime-smoke.yml": "ebbe8a0fec4099486b8b2f7eafed76f567cdc337b958519db3e0b45251b88c27",
+    ".github/workflows/toto-runtime-smoke.yml": "42eab5d112acf27334764cb3a7b10f6419167b2a9686caf32b14b477978591e1",
     ".gitignore": "f90e6c1c1c7f24d481b2ab879060fea41781842e5fdcbac52e81c800174051e6",
     "CHANGELOG.md": "531130ce7c506d941afa50c8e527bfc8aed80b5cca8ea30c8649d0550b882c27",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
@@ -222,7 +230,7 @@
     "scripts/run_backend_schedules.py": "6f15b8fd586bfd67ddf57495204f7077fc7280fd56ce5684cb5298368c93d1a3",
     "scripts/screener_schedule.py": "bbd2bff972e863ad6040ebd00fce442f48486b0406d3270273619bdff254640e",
     "scripts/service_preflight.py": "1e36c941f12fb823ccd544ff642d48ea65b9ebe30766d79d938217a22c474c69",
-    "scripts/toto_runtime_smoke.py": "0d57356cd05a5add85e1594ba7b3fea914b718c19b2b4f9e6cf6621f7b287a7f",
+    "scripts/toto_runtime_smoke.py": "5634f9e8e975ef97413ccd86757c75095e143d004abbc2a3194c3d69b9968ccf",
     "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859",
     "tests/runtime-controls-coverage.ini": "7e3aa0528adc7963f94cf1b21402e0f75f86a3b258be86b68946d7eff8057c05",
     "tests/test_service_preflight.py": "9b6361c465c95390f163f692de42e4b09201aea7bfaca00d20c5e8617228cb14",
