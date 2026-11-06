@@ -29,3 +29,18 @@ The duplicate root research test copies were consolidated into the canonical `ma
 - Quantura's Vercel account remains blocked; no paid upgrade, DNS change, IAM change or new cloud instance is authorized by these changes. Existing application checks also report Actions artifact quota exhaustion. Those limitations are not suppressed or counted as passing tests.
 
 References: [GitHub Contents updates and conflicts](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents), [GitHub workflow dispatch](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event), [Datadog Toto](https://github.com/DataDog/toto). The Toto 2.0.0 wheel and the registry's immutable 4M checkpoint configuration were inspected; no upstream implementation source or weights are committed here.
+
+### Workflow parser follow-up
+The new Toto diagnostic initially failed GitHub validation before any model executed: `runner.temp` is unavailable in job-level `env`. Its cache directory is now defined in step-level `env`. Gateway preflight CI runs actionlint1.7.12 against every worker workflow, with its Linux release archive verified against the pinned upstream SHA256. All workflow changes trigger this gate. This verifies context availability as well as YAML syntax; it is not evidence of a successful SDK diagnostic.
+
+### Toto checkpoint-loading correction
+The real CPU diagnostic run42143193261 failed at `native_checkpoint_load` with a `TypeError` inside the pinned Hugging Face Hub mixin before inference. The inspected toto-2 2.0.0 wheel delegates remote construction to that mixin, whereas its local loader explicitly builds `Toto2ModelConfig`. The adapter now downloads only config/safetensors for the requested checkpoint and immutable revision, then uses the SDK's local loader with `local_files_only=True`. A missing config or weights fails before SDK construction; it cannot fall back to another model. No upstream source, weights or credentials are committed.
+
+Eight offline loader control cases pass (not model execution), with100% executed line/branch coverage for the loader. The current checkpoint and saved revision tests plus export-boundary test pass. The real native forecast and both512/511-row adapter paths must pass in the rerun before claiming recovery. The frozen historical replay runtime remains unchanged.
+
+The next diagnostic42143833591 received HTTP401 during the authenticated snapshot download. Anonymous metadata for the same public4M revision was available. The inspected public4M checkpoint now explicitly uses `token=False`, avoiding implicit or stale account credentials; custom/private checkpoints keep their supplied token and are never retried anonymously. Nine offline loader cases pass, including denied private access without fallback. The lightweight CI job explicitly installs its required pandas/numpy versions. Real inference remains pending the next diagnostic.
+
+### Verified CPU model outcome
+Run42144209665 passed real CPU execution with toto-2 2.0.0, torch2.11.0+cpu and huggingface-hub1.30.0. The unchanged pinned4M revision produced finite native shape(9,1,1,7), then the actual adapter passed both512 and511 genuine observation cases. P01/P99 remained unavailable instead of being fabricated beyond the model's native support. No market forecasts or orders were published. The public workflow controls gate also passed. This validates the isolated Toto repair, not every model or the entire live screener.
+
+The private source's loader tests run with the existing forecasting job's scientific dependencies; the independent MiniBench job retains its lightweight dependency set and still checks export boundaries and gateway controls.

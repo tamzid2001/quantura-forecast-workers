@@ -20,8 +20,8 @@ def main():
     try:
         import numpy as np
         import torch
-        from toto2 import Toto2Model
         from ensemble_forecasting.adapters.toto import TotoAdapter,toto_checkpoint
+        from ensemble_forecasting.adapters.toto_loader import load_toto_model
         from ensemble_forecasting.schemas import ForecastRequest,PreparedSeries
         torch.set_num_threads(2)
         torch.manual_seed(20261105)
@@ -31,7 +31,7 @@ def main():
             'models':{'toto':{'enabled':True,'weight':1}},'frequency':'1D','calendar':'NONE'})
         checkpoint,revision=toto_checkpoint(request)
         report.update(checkpoint=checkpoint,revision=revision,stage='native_checkpoint_load')
-        model=Toto2Model.from_pretrained(checkpoint,revision=revision,token=os.environ.get('HF_TOKEN')).to('cpu').eval()
+        model=load_toto_model(checkpoint,revision,token=os.environ.get('HF_TOKEN')).to('cpu').eval()
         target=torch.linspace(1.,2.,64).reshape(1,1,-1)
         with torch.inference_mode():
             report['stage']='native_forecast'
