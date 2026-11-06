@@ -137,7 +137,7 @@ def history(spec: dict, *, now=None, fetch=get) -> tuple[list[dict], dict]:
                   "vintage_date": vintage, "vintage_precision": "date", "series_id": series}
 
 
-def evidence(question, *, fetch=get) -> list[dict]:
+def evidence(question, *, fetch=get, emit=None) -> list[dict]:
     if not os.environ.get("FRED_API_KEY"):
         return []
     results = []
@@ -165,6 +165,8 @@ def evidence(question, *, fetch=get) -> list[dict]:
                                   "role": "Research context; use only if consistent with the stated resolution criteria. Observation dates are not release times. Latest revised data.",
                                   "notes": str(info.get("notes", ""))[:2500]}, sort_keys=True)
             results.append({"url": SERIES_URL + series, "sha256": hashlib.sha256(excerpt.encode()).hexdigest(), "excerpt": excerpt})
+            if emit is not None:
+                emit(results[-1])
         except FredError:
             continue
     return results
