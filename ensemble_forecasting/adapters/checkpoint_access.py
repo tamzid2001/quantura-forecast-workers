@@ -7,6 +7,7 @@ This policy does not modify any model-license or production capability gate.
 PUBLIC_CHECKPOINTS = frozenset({
     "Datadog/Toto-2.0-4m",
     "ibm-granite/granite-timeseries-patchtst-fm-r2",
+    "amazon/chronos-2",
 })
 
 

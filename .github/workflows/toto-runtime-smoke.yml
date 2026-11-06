@@ -5,7 +5,7 @@ on:
       model:
         description: Real CPU fixture adapter to diagnose; no market publication
         type: choice
-        options: [toto, granite]
+        options: [toto, granite, chronos]
         default: toto
 permissions:
   contents: read

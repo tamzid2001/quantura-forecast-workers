@@ -16,7 +16,7 @@ import traceback
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--model',choices=['toto','granite'],default='toto')
+    parser.add_argument('--model',choices=['toto','granite','chronos'],default='toto')
     model_id=parser.parse_args(argv).model
     output=Path('artifacts/toto-runtime-smoke.json');output.parent.mkdir(exist_ok=True)
     report={'provenance':'FIXTURE','execution':'real_cpu_model_sdk','hardware':'CPU',
@@ -26,12 +26,15 @@ def main(argv=None):
         import torch
         from ensemble_forecasting.adapters.toto import TotoAdapter,toto_checkpoint
         from ensemble_forecasting.adapters.granite import GraniteAdapter
+        from ensemble_forecasting.adapters.chronos import ChronosAdapter
         from ensemble_forecasting.adapters.toto_loader import load_toto_model
         from ensemble_forecasting.adapters.native_foundation import checkpoint_identity
         from ensemble_forecasting.schemas import ForecastRequest,PreparedSeries
         torch.set_num_threads(2)
         torch.manual_seed(20261105)
-        report['packages']={p:importlib.metadata.version(p) for p in ['toto-2' if model_id=='toto' else 'granite-tsfm','torch','huggingface-hub']}
+        packages={'toto':'toto-2','granite':'granite-tsfm','chronos':'chronos-forecasting'}
+        adapters={'toto':TotoAdapter,'granite':GraniteAdapter,'chronos':ChronosAdapter}
+        report['packages']={p:importlib.metadata.version(p) for p in [packages[model_id],'torch','huggingface-hub']}
         request=ForecastRequest.from_dict({'prediction_length':7,'horizon_mode':'frequency_periods',
             'quantiles':[.01,.25,.5,.75,.9,.99],'transform':'none','context_length':512,
             'models':{model_id:{'enabled':True,'weight':1}},'frequency':'1D','calendar':'NONE'})
@@ -55,7 +58,7 @@ def main(argv=None):
             now=datetime(2026,11,5,tzinfo=timezone.utc)
             times=tuple((now-timedelta(days=size-i)).isoformat() for i in range(size))
             series=PreparedSeries(times,values,values,'none','1D','UTC','fixture-not-market-data')
-            adapter=TotoAdapter() if model_id=='toto' else GraniteAdapter()
+            adapter=adapters[model_id]()
             result=adapter.forecast(series,tuple((now+timedelta(days=i)).isoformat() for i in range(7)),request)
             result.validate()
             if model_id=='toto':

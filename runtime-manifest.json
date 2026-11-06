@@ -1,5 +1,17 @@
 {
   "component_sources": {
+    "chronos_public_checkpoint_access": {
+      "files": [
+        "ensemble_forecasting/adapters/checkpoint_access.py",
+        "ensemble_forecasting/adapters/chronos.py",
+        "tests/test_toto_loading.py",
+        "scripts/toto_runtime_smoke.py",
+        ".github/workflows/toto-runtime-smoke.yml",
+        ".github/workflows/runtime-preflight-validation.yml"
+      ],
+      "scope": "Public Apache-2.0 Chronos2 checkpoint only; adds independent real CPU adapter diagnostic without changing quantile or license gates.",
+      "source_commit": "dd65edb4f97af2d04836135a55eb0f17124853ed"
+    },
     "granite_diagnostic": {
       "files": [
         "scripts/toto_runtime_smoke.py",
@@ -107,14 +119,14 @@
     ".github/workflows/metaculus-readiness.yml": "2db9ddfec700da79c787ca643abc35bc71efea0aa59c4baad16729e303929667",
     ".github/workflows/metaculus-watchdog.yml": "edfc270dc523b09ce6e7c3c552e8cef049859fa8b2d54a1ef35f8425b0653da6",
     ".github/workflows/metered-billing.yml": "ffe59eef6bbed24e280fee6f32e179e0b8f67c1547004b4a84dff2c36ce606eb",
-    ".github/workflows/runtime-preflight-validation.yml": "03c7d7dd5ef7f3828fcc5b7a9a09bb9d9cb685b31c3a1e908f3eb2757f85dc1c",
+    ".github/workflows/runtime-preflight-validation.yml": "725b1ab295a3868a98b089929feb59e1c99716fc633580ddedbed7da8906b5b2",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
     ".github/workflows/sports-month-backtest.yml": "2820397d795d92547dd28598135631ccdd29feb1781d1ad73d3251ed34a47eca",
     ".github/workflows/sports-month-watchdog.yml": "0c75a88cebf1f92256d03791e176dec8afc8015a0703c2cc97ad7f392f6d2a65",
     ".github/workflows/sports-paper-validation.yml": "c2598229242e5858d9e589d6be5f233a3ed203fbef396826dd23059959eb2647",
     ".github/workflows/sports-strategy-research.yml": "322e715b9d6569ab455b1d2a3f5c7bf319f8a38d7f1328a8b9a2fc2a685158bf",
     ".github/workflows/stock-screener.yml": "0976e7ec39f5aba142141ac1a3edc23f449e738764896ccb2419a5a88f62ec14",
-    ".github/workflows/toto-runtime-smoke.yml": "42eab5d112acf27334764cb3a7b10f6419167b2a9686caf32b14b477978591e1",
+    ".github/workflows/toto-runtime-smoke.yml": "bbd6ce42db20d1d522f459362bacf8ec5b71f51af0fd81b41ef0567bf5e7a479",
     ".gitignore": "f90e6c1c1c7f24d481b2ab879060fea41781842e5fdcbac52e81c800174051e6",
     "CHANGELOG.md": "531130ce7c506d941afa50c8e527bfc8aed80b5cca8ea30c8649d0550b882c27",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
@@ -134,8 +146,8 @@
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
     "ensemble_forecasting/adapters/base.py": "03c44461cef246ecc358032cdd34e90106fe3f6c30a99e4401d98af564426bf1",
-    "ensemble_forecasting/adapters/checkpoint_access.py": "cabaf559077166516fa2e9b5021537988110ac52025f6459a5a6f2490c3f4d5d",
-    "ensemble_forecasting/adapters/chronos.py": "88222de096d191dcdd7b4fa74908b34828b72d63c30f23e777e66250c9eda271",
+    "ensemble_forecasting/adapters/checkpoint_access.py": "e406f3a7b34123cf4199b8a6358b5b26b5bb62deaacb520b073bf3e4820a3f88",
+    "ensemble_forecasting/adapters/chronos.py": "4600011220427cf28be43a3dad623a72fca6f3aa19851c094e4dc9f4fe0279c2",
     "ensemble_forecasting/adapters/granite.py": "55e47c4cb9179e656acd194a8c7417f1ce841df50acb6c812142ed2d6c99094e",
     "ensemble_forecasting/adapters/mock.py": "c0b0508dcaa22f41765bf51dd12a8a3d93a1efefa0b5aa08f29d48c4fc7a351f",
     "ensemble_forecasting/adapters/native_foundation.py": "be67e291384741f7bfb5e018f4252d318eb5f08a53ad5ab903544522e52baf1f",
@@ -243,11 +255,11 @@
     "scripts/run_backend_schedules.py": "6f15b8fd586bfd67ddf57495204f7077fc7280fd56ce5684cb5298368c93d1a3",
     "scripts/screener_schedule.py": "bbd2bff972e863ad6040ebd00fce442f48486b0406d3270273619bdff254640e",
     "scripts/service_preflight.py": "1e36c941f12fb823ccd544ff642d48ea65b9ebe30766d79d938217a22c474c69",
-    "scripts/toto_runtime_smoke.py": "5634f9e8e975ef97413ccd86757c75095e143d004abbc2a3194c3d69b9968ccf",
+    "scripts/toto_runtime_smoke.py": "289b90a875c34ddeacd64ab7f613afd08bda8e1aeb97a3e7e23f6583ad6de02f",
     "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859",
     "tests/runtime-controls-coverage.ini": "a39d49ff753ebc9e7968df289063ba4ebe396c001018967046f31b5fab53fe23",
     "tests/test_service_preflight.py": "9b6361c465c95390f163f692de42e4b09201aea7bfaca00d20c5e8617228cb14",
-    "tests/test_toto_loading.py": "c95157c7b7e4b3b1d83f4ad631e36ee9d971358972fdc2aeefe03d2fc64e0518"
+    "tests/test_toto_loading.py": "a661b6a51d230baac11bff1e252e65ded1b6e7011f739c4addb72e4ca4fe67d1"
   },
   "source_commit": "42f93feeb2fea375beef3be8dbce66162a811894"
 }

@@ -11,6 +11,7 @@ from ensemble_forecasting.adapters.checkpoint_access import checkpoint_token
 @pytest.mark.parametrize("checkpoint,expected", [
     ("Datadog/Toto-2.0-4m", False),
     ("ibm-granite/granite-timeseries-patchtst-fm-r2", False),
+    ("amazon/chronos-2", False),
     ("private-org/model", "fixture-credential"),
     ("private-org/Toto-2.0-4m", "fixture-credential"),
     ("ibm-granite/granite-timeseries-patchtst-fm-r2-private", "fixture-credential"),
