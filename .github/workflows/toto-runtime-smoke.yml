@@ -5,7 +5,7 @@ on:
       model:
         description: Real CPU fixture adapter to diagnose; no market publication
         type: choice
-        options: [toto, granite, chronos]
+        options: [toto, granite, chronos, timesfm, timestral, t0]
         default: toto
 permissions:
   contents: read
@@ -18,6 +18,9 @@ jobs:
       CUDA_VISIBLE_DEVICES: ''
       TOKENIZERS_PARALLELISM: 'false'
       MODEL_ID: ${{ inputs.model || 'toto' }}
+      TIMESFM_HF_ACCESS_APPROVED: ${{ vars.TIMESFM_HF_ACCESS_APPROVED || 'false' }}
+      ALLOW_NONCOMMERCIAL_TIMESFM: 'true'
+      TIMESFM_COMMERCIAL_LICENSED: 'false'
     steps:
       - uses: actions/checkout@v6
         with: {persist-credentials: false}
