@@ -1,10 +1,10 @@
 name: Gateway preflight validation
 on:
   pull_request:
-    paths: ['scripts/service_preflight.py', 'tests/test_service_preflight.py', 'tests/test_toto_loading.py', 'tests/runtime-controls-coverage.ini', 'ensemble_forecasting/adapters/toto*.py', '.github/workflows/**']
+    paths: ['scripts/service_preflight.py', 'tests/test_service_preflight.py', 'tests/test_toto_loading.py', 'tests/runtime-controls-coverage.ini', 'ensemble_forecasting/adapters/toto*.py', 'ensemble_forecasting/adapters/checkpoint_access.py', 'ensemble_forecasting/adapters/granite.py', 'ensemble_forecasting/adapters/chronos.py', '.github/workflows/**']
   push:
     branches: [main]
-    paths: ['scripts/service_preflight.py', 'tests/test_service_preflight.py', 'tests/test_toto_loading.py', 'tests/runtime-controls-coverage.ini', 'ensemble_forecasting/adapters/toto*.py', '.github/workflows/**']
+    paths: ['scripts/service_preflight.py', 'tests/test_service_preflight.py', 'tests/test_toto_loading.py', 'tests/runtime-controls-coverage.ini', 'ensemble_forecasting/adapters/toto*.py', 'ensemble_forecasting/adapters/checkpoint_access.py', 'ensemble_forecasting/adapters/granite.py', 'ensemble_forecasting/adapters/chronos.py', '.github/workflows/**']
 permissions:
   contents: read
 jobs:

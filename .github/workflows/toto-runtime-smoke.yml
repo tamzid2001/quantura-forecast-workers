@@ -1,6 +1,12 @@
-name: Toto pinned CPU SDK diagnostic
+name: Pinned foundation-model CPU SDK diagnostic
 on:
   workflow_dispatch:
+    inputs:
+      model:
+        description: Real CPU fixture adapter to diagnose; no market publication
+        type: choice
+        options: [toto, granite, chronos]
+        default: toto
 permissions:
   contents: read
 jobs:
@@ -11,6 +17,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       CUDA_VISIBLE_DEVICES: ''
       TOKENIZERS_PARALLELISM: 'false'
+      MODEL_ID: ${{ inputs.model || 'toto' }}
     steps:
       - uses: actions/checkout@v6
         with: {persist-credentials: false}
@@ -21,7 +28,7 @@ jobs:
       - name: Evaluate the native API and real adapter on synthetic CPU fixtures
         env:
           HF_HOME: ${{ runner.temp }}/toto-diagnostic
-        run: python -m scripts.toto_runtime_smoke
+        run: python -m scripts.toto_runtime_smoke --model "$MODEL_ID"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

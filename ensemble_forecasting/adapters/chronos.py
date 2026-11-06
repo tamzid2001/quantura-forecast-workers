@@ -13,6 +13,7 @@ from ..schemas import (
 )
 from ..validation import monotonic_rearrangement
 from .native_foundation import checkpoint_identity
+from .checkpoint_access import checkpoint_location, checkpoint_token
 from .base import (
     ForecastAdapter,
     ModelExecutionError,
@@ -52,10 +53,11 @@ class ChronosAdapter(ForecastAdapter):
         pipeline = None
         try:
             checkpoint, revision = checkpoint_identity(self.model_id, request)
+            location = checkpoint_location(checkpoint, revision, token=hf_token())
             device = device_name("auto")
             pipeline = Chronos2Pipeline.from_pretrained(
-                checkpoint, device_map=device, token=hf_token(),
-                **({"revision": revision} if revision else {})
+                location, device_map=device, token=checkpoint_token(checkpoint, hf_token()),
+                **({"local_files_only": True} if location != checkpoint else {"revision": revision} if revision else {})
             )
             trained = tuple(
                 float(value) for value in getattr(pipeline, "quantiles", [])
