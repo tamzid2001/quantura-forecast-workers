@@ -53,5 +53,7 @@ jobs:
           path: |
             ${{ runner.temp }}/games-limit-paper/stats.json
             ${{ runner.temp }}/games-limit-paper/limit-ledger.csv
+            ${{ runner.temp }}/games-limit-paper/depth-shadow-stats.json
+            ${{ runner.temp }}/games-limit-paper/depth-shadow-evidence.json
           if-no-files-found: warn
           retention-days: 90

@@ -1,232 +1,36 @@
 {
-  "component_sources": {
-    "bounded_minibench_research": {
-      "files": [
-        "metaculus_bot/research.py",
-        "metaculus_bot/fred.py",
-        "metaculus_bot/runner.py",
-        "metaculus_bot/tests/test_bot.py",
-        "metaculus_bot/tests/test_fred.py",
-        "metaculus_bot/tests/test_research_budget.py",
-        "docs/metaculus-bot.md",
-        ".github/workflows/metaculus-control-validation.yml"
-      ],
-      "scope": "Supervised read-only research child; shared wall-clock budget and incremental evidence. No new provider, inference, submission or private-comment policy.",
-      "source_commit": "d5f702ab28c6ad0aca5f1f43d8e0c77112d8c1a2"
-    },
-    "chronos_public_checkpoint_access": {
-      "files": [
-        "ensemble_forecasting/adapters/checkpoint_access.py",
-        "ensemble_forecasting/adapters/chronos.py",
-        "tests/test_toto_loading.py",
-        "scripts/toto_runtime_smoke.py",
-        ".github/workflows/toto-runtime-smoke.yml",
-        ".github/workflows/runtime-preflight-validation.yml"
-      ],
-      "scope": "Public Apache-2.0 Chronos2 checkpoint only; adds independent real CPU adapter diagnostic without changing quantile or license gates.",
-      "source_commit": "dd65edb4f97af2d04836135a55eb0f17124853ed"
-    },
-    "foundation_runtime_verified": {
-      "files": [
-        "ensemble_forecasting/adapters/checkpoint_access.py",
-        "ensemble_forecasting/adapters/toto_loader.py",
-        "ensemble_forecasting/adapters/granite.py",
-        "ensemble_forecasting/adapters/chronos.py",
-        "scripts/toto_runtime_smoke.py",
-        "tests/test_toto_loading.py",
-        "tests/runtime-controls-coverage.ini",
-        ".github/workflows/toto-runtime-smoke.yml",
-        ".github/workflows/runtime-preflight-validation.yml",
-        "docs/operations/CI_RECOVERY_2026-11-05.md"
-      ],
-      "native_cpu_runs": {
-        "chronos": 42146495361,
-        "granite": 42146492773,
-        "toto": 42146498268
-      },
-      "scope": "Current canonical files verified byte-for-byte. Real pinned CPU fixtures only; entire seven-model production run remains unverified.",
-      "source_commit": "44dbf81fc7fd181d022b190eb518f2d1b5bfe83c"
-    },
-    "granite_diagnostic": {
-      "files": [
-        "scripts/toto_runtime_smoke.py",
-        ".github/workflows/toto-runtime-smoke.yml"
-      ],
-      "scope": "Separate real CPU fixture diagnostic for the newly exposed Granite failure; no production forecast or model substitution.",
-      "source_commit": "b6a169db23f352b308a4a5d609d4f0adcf7ca699"
-    },
-    "hosting_maintenance_deferral": {
-      "files": [
-        "scripts/service_preflight.py",
-        "tests/test_service_preflight.py",
-        "docs/operations/CI_RECOVERY_2026-11-05.md",
-        ".github/workflows/stock-screener.yml",
-        ".github/workflows/homepage-stock-screener.yml",
-        ".github/workflows/hourly-game-screener.yml",
-        ".github/workflows/backend-schedules.yml",
-        ".github/workflows/metered-billing.yml"
-      ],
-      "scope": "Explicit scheduled-only acknowledged hosting suspension; manual/unknown failures remain strict; no production work is claimed for deferrals.",
-      "source_commit": "806b6d05944840416484a8959fa61ebdc64be406"
-    },
-    "metaculus_bot": {
-      "files": [
-        "docs/metaculus-bot.md",
-        "metaculus_bot/api.py",
-        "metaculus_bot/minibench.py",
-        "metaculus_bot/runner.py",
-        "metaculus_bot/sdk/README.md",
-        "metaculus_bot/sdk/numeric_report.py",
-        "metaculus_bot/sdk/provenance.json",
-        "metaculus_bot/tests/test_bot.py",
-        "metaculus_bot/tests/test_minibench.py",
-        "metaculus_bot/tests/test_numeric_reliability.py",
-        ".github/workflows/metaculus-bot.yml"
-      ],
-      "scope": "incremental reliability patch; other runtime components retain the full-export source commit",
-      "source_commit": "23f248681622f2626a2a020dd8000cf5f52e99dc"
-    },
-    "native_local_snapshots": {
-      "files": [
-        "ensemble_forecasting/adapters/checkpoint_access.py",
-        "ensemble_forecasting/adapters/toto_loader.py",
-        "ensemble_forecasting/adapters/granite.py",
-        "ensemble_forecasting/adapters/chronos.py",
-        "tests/test_toto_loading.py"
-      ],
-      "scope": "Exact immutable reviewed public snapshots with config/weight validation and local-only native loading; private Granite/Chronos download semantics retained.",
-      "source_commit": "fc79e2d5eac5d3aba7ff07d2df2ac0f12ae251f6"
-    },
-    "public_checkpoint_access": {
-      "files": [
-        "ensemble_forecasting/adapters/checkpoint_access.py",
-        "ensemble_forecasting/adapters/toto_loader.py",
-        "ensemble_forecasting/adapters/granite.py",
-        "tests/test_toto_loading.py",
-        "tests/runtime-controls-coverage.ini",
-        ".github/workflows/runtime-preflight-validation.yml"
-      ],
-      "scope": "Exact inspected public Toto/Granite IDs only; private authentication and all license/capability gates retained.",
-      "source_commit": "c6ec81bdb0749d19b7f72fa94f1e9136f7e6024c"
-    },
-    "remaining_native_diagnostics": {
-      "files": [
-        "scripts/toto_runtime_smoke.py",
-        ".github/workflows/toto-runtime-smoke.yml"
-      ],
-      "scope": "Bounded CPU fixture choices and explicit noncommercial TimesFM evaluation; production license gates unchanged.",
-      "source_commit": "81e1375454715a13fd85ba23a0dc1c84484b4720"
-    },
-    "remaining_sdk_snapshots": {
-      "files": [
-        "ensemble_forecasting/adapters/checkpoint_access.py",
-        "ensemble_forecasting/adapters/timesfm.py",
-        "ensemble_forecasting/adapters/timestral.py",
-        "ensemble_forecasting/adapters/t0.py",
-        "tests/test_toto_loading.py",
-        ".github/workflows/runtime-preflight-validation.yml"
-      ],
-      "native_cpu_runs": {
-        "t0": 42310948333,
-        "timesfm": 42310942579,
-        "timestral": 42310945430
-      },
-      "scope": "Reviewed public snapshots only; TimesFM license/production gates stay before native loading. Real verification pending.",
-      "source_commit": "812f55a42386e42b068f5d40b717095de7f20274"
-    },
-    "sports_paper": "5c407108629bb0bf3394dec81b9e578a35df4fcd",
-    "toto_cpu_verification": {
-      "files": [
-        "docs/operations/CI_RECOVERY_2026-11-05.md"
-      ],
-      "scope": "Native pinned Toto CPU fixture and actual adapter execution; not a full live multi-model screener result.",
-      "source_commit": "ad7f05e60d0258a180fe7e2e796bb9d219651acc",
-      "verified_workflow_run": 42144209665
-    },
-    "toto_local_snapshot_loader": {
-      "files": [
-        "ensemble_forecasting/adapters/toto.py",
-        "ensemble_forecasting/adapters/toto_loader.py",
-        "scripts/toto_runtime_smoke.py",
-        "tests/test_toto_loading.py",
-        "tests/runtime-controls-coverage.ini",
-        ".github/workflows/runtime-preflight-validation.yml",
-        "docs/operations/CI_RECOVERY_2026-11-05.md"
-      ],
-      "scope": "Pinned model config and safetensors via official local SDK loading; no change to frozen historical replay.",
-      "source_commit": "4a8f1d7e788db96363967945cdea5a91fd054479"
-    },
-    "worker_reliability": {
-      "files": [
-        ".github/workflows/homepage-stock-screener.yml",
-        ".github/workflows/metaculus-control-validation.yml",
-        ".github/workflows/metered-billing.yml",
-        ".github/workflows/runtime-preflight-validation.yml",
-        ".github/workflows/sports-strategy-research.yml",
-        ".github/workflows/stock-screener.yml",
-        ".github/workflows/toto-runtime-smoke.yml",
-        "docs/operations/CI_RECOVERY_2026-11-05.md",
-        "market_research/sports_research/data.py",
-        "market_research/sports_research/statistics.py",
-        "market_research/sports_research/study.py",
-        "market_research/tests/test_sports_research.py",
-        "metaculus_bot/automation.py",
-        "metaculus_bot/tests/test_github_automation.py",
-        "scripts/service_preflight.py",
-        "scripts/toto_runtime_smoke.py",
-        "tests/test_service_preflight.py"
-      ],
-      "scope": "Incremental runtime fixes; workflow sources are under public_worker. Coverage files are local executed measurements with portable source roots.",
-      "source_commit": "38b94972fcad94526c154395e8cddda2e2b8e8db"
-    },
-    "workflow_context_validation": {
-      "files": [
-        ".github/workflows/toto-runtime-smoke.yml",
-        ".github/workflows/runtime-preflight-validation.yml",
-        "docs/operations/CI_RECOVERY_2026-11-05.md"
-      ],
-      "scope": "Canonical public_worker templates and CI recovery documentation; fixed context availability and mandatory actionlint.",
-      "source_commit": "5b88d40528359f03fa3041000417f43dfba090a8"
-    }
-  },
+  "source_commit": "0bde9e7392cd8eb926ba76ae6960e68602f572d4",
   "files": {
     ".github/workflows/backend-schedules.yml": "310bb647ae528dfdd22918a20b56efd1676f3279d290d896c8c8b28f17975aec",
     ".github/workflows/ensemble-forecast.yml": "5bac1d55a18be5fcf92ea5d126e80b7cba593fd0435dd6cdcac34689c684f0c6",
-    ".github/workflows/games-p01-limit-paper.yml": "1bead2d892f758a4284961c24106a9a1c908f793b1bf6e182c3d9898a2cfca6a",
-    ".github/workflows/games-p01-paper.yml": "18a86cfeac15d9b0b1cb32d76128754e28608dc509b6953da8c1117af997aff3",
+    ".github/workflows/games-p01-limit-paper.yml": "2f82e93d3e66413beee036db081ebbe39e8c4e305044c31df5c1b43609ff2c09",
+    ".github/workflows/games-p01-paper.yml": "9efb2ee533c10c1eec20b9aa18fec74648fbfa8653de2b637f67f8f826d7da20",
     ".github/workflows/homepage-stock-screener.yml": "1d9314913017007b73571b1ef15478f6d87a466728306f3132210f1e62299622",
-    ".github/workflows/hourly-game-screener.yml": "68832f7aae33371e1c84d02f9bd9159bfdf6eaa2beb431488fc25267bccfaffd",
+    ".github/workflows/hourly-game-screener.yml": "35378ebf4c7e4843e9fe26441a007fad539d22784bf79dd9d22e924d9f5abdbd",
     ".github/workflows/hourly-perpetual-screener.yml": "b5a7609cb9c184e5cee0f26947075db064cf70971117d28f2d48a69fde44700e",
     ".github/workflows/metaculus-bot.yml": "eede95a3eaabec1fa0f7823c98c18acc94821b0535710e6b63772b44a508d08a",
     ".github/workflows/metaculus-control-validation.yml": "fb1b6204ef951e81659cac1f328307fc3e320822be317b49f1e6bc147ebf95b7",
-    ".github/workflows/metaculus-coverage.yml": "bf4e196b007cca71e9f5ef1c2fec37d58ad01a2a5cc49710f57714468cb8f3e9",
+    ".github/workflows/metaculus-coverage.yml": "ea208f3a11ed3028a29772a295bf779c0a893204e65e6342dd24776bec1fe8d4",
     ".github/workflows/metaculus-poll.yml": "79b3e0aba56cf284363a8d1ea19abef52c1b25615b920db885331ab453cfa404",
     ".github/workflows/metaculus-readiness.yml": "2db9ddfec700da79c787ca643abc35bc71efea0aa59c4baad16729e303929667",
     ".github/workflows/metaculus-watchdog.yml": "edfc270dc523b09ce6e7c3c552e8cef049859fa8b2d54a1ef35f8425b0653da6",
     ".github/workflows/metered-billing.yml": "2baf277442661b81348014d5d6d962ac4a49a620cdec88501081b76f8372028f",
     ".github/workflows/runtime-preflight-validation.yml": "4f7091d14d6ab7395ef0ca193ac464196df3a0beeb7794eb47563df74a0e5715",
     ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
-    ".github/workflows/sports-month-backtest.yml": "2820397d795d92547dd28598135631ccdd29feb1781d1ad73d3251ed34a47eca",
+    ".github/workflows/sports-month-backtest.yml": "f400b9b9645ed1c1bd2de32ef77d0984a72aef8e0ee04f4ea1917ab9ea84843c",
     ".github/workflows/sports-month-watchdog.yml": "0c75a88cebf1f92256d03791e176dec8afc8015a0703c2cc97ad7f392f6d2a65",
-    ".github/workflows/sports-paper-validation.yml": "c2598229242e5858d9e589d6be5f233a3ed203fbef396826dd23059959eb2647",
+    ".github/workflows/sports-paper-validation.yml": "e083581730a18fe37b977eae98ff179c26bca18dbf66705b740279822c693a81",
     ".github/workflows/sports-strategy-research.yml": "322e715b9d6569ab455b1d2a3f5c7bf319f8a38d7f1328a8b9a2fc2a685158bf",
     ".github/workflows/stock-screener.yml": "c0d604a747894f6251aa48195871857f7bb9c5b29937657c6e1e367ab8c241b1",
     ".github/workflows/toto-runtime-smoke.yml": "001e80d23b65f5c43f98db5ff0f2ef879575b4ea476ca5efeacb5b2896ad43af",
     ".gitignore": "f90e6c1c1c7f24d481b2ab879060fea41781842e5fdcbac52e81c800174051e6",
-    "CHANGELOG.md": "531130ce7c506d941afa50c8e527bfc8aed80b5cca8ea30c8649d0550b882c27",
     "LICENSE": "12bc6b3d87de15490c03e7410404407e1eb006ed4fb8030a2b6c2cb036dbdf5e",
-    "README.md": "ad6f0919aa0c4be6c6a7576930b3d36c5aebb1be18e729e7c7e7fa8103471bd2",
-    "docs/PRIVACY.md": "d5263faf10a694a4a20e35e0e6ecef8b0cbc17eb4738ddfbf3ecc74880b97a5e",
-    "docs/RDMA_ASSESSMENT.md": "f10913fb76e53933b7c461c3f71a6592e0e918c082e9f9c2989243ad89ba8fbb",
-    "docs/RIGHTS.md": "b8f59dc5807106184a4eebaba5110b37afe67a5b2788dae29097450a76f7724f",
-    "docs/TERMS_OF_USE.md": "e17b3c09a9b4afe2865536b0f5aebfc4465511c87e1984b9fb36b6de52423d6c",
-    "docs/coverage/gateway-preflight.xml": "c62c4af730de4d3bf457528820cc0e453513299709895d10f830146fe636d5ef",
-    "docs/coverage/metaculus-control.xml": "c2c1f8a26ee022f08195de440f1dbb5fa505c810c8dbac81435933b51316d399",
-    "docs/coverage/sports-research.xml": "fe0f9664860a4acf8ed706961c50635d3f6dc9bb96ccd8c3d497364fb67d4ada",
+    "README.md": "06d2bb268476ba54e4130cffeef2930c3398bbb4d16f34aa8f0865cd569e94b5",
     "docs/games-p01-paper.md": "ea4a350047de8a15f9e914e3065c5bace4a4bb604f701225d4632f549f1ceb0d",
     "docs/metaculus-bot.md": "254760b4c47fe05897a4c58c051ee29362cbc9400894822e9e61c58e4a888cd1",
     "docs/metaculus-research-evaluation.md": "c44c92602e3f76b2c543294a912251ec040c71843c60345102b904a176f69f27",
     "docs/operations/CI_RECOVERY_2026-11-05.md": "c2fe3741dfb3da08e49436c89cb87734d98af5992ea9ec3604f09c0468a521dd",
+    "docs/operations/sports-forward-recovery-2026-11-07.md": "c49b880773403b6af9b8fb46bd5d953c1ba80ec40cbfa198fabcd0e82b102c73",
     "docs/sports-paper-snapshot-recovery.md": "8935f95e4149f4359a8e5b311fc594631e41e4e83cd0d84c68560ed716843db8",
     "ensemble_forecasting/__init__.py": "38ccdf631d7c38752c3189513ceb7a80201eac2a11127cee4ca633f74c37db68",
     "ensemble_forecasting/adapters/__init__.py": "a839b87c693ab32c96e078d40dae8faa403855490c3f3ebc2f0ed43df9dc16e9",
@@ -256,41 +60,54 @@
     "ensemble_forecasting/weighting.py": "54b19f7a5aaedbb264594ecc9c428f64978bb503a4574e1d3c79857999be4b99",
     "ensemble_forecasting/worker.py": "0b3633ed0e3071231d1d09ccbb33528b239a5856f6773016bde1d65b2746d443",
     "market_research/__init__.py": "d2db1905339f3b8cfbd48bdd3d16852e5043aab1756778bf5ff5b9223f145fc1",
+    "market_research/depth_shadow.py": "f0c0eb0f31d9802f5e1c0084d332d42dea30b0c41a876aafd44869f874a344ba",
     "market_research/engine.py": "201f12b4adb1faf6377e92662c013a9fed0c0979cfa84a225ec3c40b1b13bf3c",
     "market_research/forecast.py": "8c717b6ea955e00ad775044b5fb0c8fb643a8afdf3531b9e22c2aafa30666ac1",
     "market_research/game_p01_books.py": "cac1af57ff6f2889085cdcbcc1fb62f2e89d90fc2187f635ea1d1e6439acec98",
     "market_research/game_p01_hourly_comparison.py": "3448de3fce743f4e0e13c2c9979108a712cc3f57de590c4768042bb27e2e33dd",
-    "market_research/game_p01_limit.py": "4020d2852b14f0a390a2df5a780529e562e2932c75ea83b51796927cab6487d6",
-    "market_research/game_p01_limit_worker.py": "f3d49635b83d21615e9cae8dd955d73fb2fff3ba4a19b26e1d6ca6a9541ad4c5",
+    "market_research/game_p01_limit.py": "5ed94b5e4e9aeac8d422aa4f905b9e16acb66af7d2ef667e5e2d9ec7b1d69fbb",
+    "market_research/game_p01_limit_worker.py": "6cb7946c3f43d840828fa9cd8899753ef4005fdf43e423bb168c1a2405fd43c0",
     "market_research/game_p01_month.py": "0205e49f079f591d6f2bc8f4b32df2cd069078ec9b459918b6e06eb775641bf4",
-    "market_research/game_p01_paper.py": "60a816bc56ac1f74a3e33c7f6e299e215715b38760adfb7271167658245e59a5",
+    "market_research/game_p01_paper.py": "04691b3e60f6cc8878b790dee6c34a3aee4a9dc873983e1697928e8789d30061",
     "market_research/game_p01_portfolio.py": "f7e6e576818c0841a5dbc2a5a662a502f44830e2adace4fe20b038764abb3e6a",
-    "market_research/pregame_screener.py": "80bb4f68b33fe795721ddbc8056b53dde2ca72047b7d1cbe825f087599f991ba",
+    "market_research/native_sports.py": "7d377be109ced253a1a5ede4ed6abcf6f39bf49c485d6223b894c153241329cc",
+    "market_research/pregame_screener.py": "3ab4a3257ef0542b1cbc08268795ef1afe3f2cb9cdad233cf344abff513bf133",
     "market_research/provider.py": "4472b478aec2f0be5cb67e894649fa73d2fc54863e73dfa43fe00691c2fa5182",
     "market_research/public_snapshots.py": "c033e2df9a89b1cdba6f268a75d318480040f6acc85042bc7c4291d31420e1eb",
     "market_research/requirements.lock": "c31f3a67f987e1255dbf254f98fc6e686cd1d4fc30dfb7af4c8f6eb01cd8597e",
     "market_research/sports_month_campaign.json": "1e85886fb6eea7553b81018b96f384fe49195e8a3cb0fc445e136afff3e1c45c",
     "market_research/sports_month_watchdog.py": "644ad0b565a2d751de8bea80ee809076157ce5b702a3adeff29710a2b038a56f",
+    "market_research/sports_recovery.py": "d16711d1355b0a87d30c856f5a5f68eee6e9cbff62954e586d39c1355d5aa0e6",
+    "market_research/sports_research/__init__.py": "99ba66df4af4ae13257b5993c0856eed62676a0c2ed6cc9f6b159ba6afaa2fba",
+    "market_research/sports_research/automation.py": "01ac2d2d16348a10498fa72d8d42e770c3c50fb0104028e44bdc40a165edae68",
+    "market_research/sports_research/cli.py": "14ca103c8da26d8bcbdeaaff1875480f02b891ce6a6dd3be4706bd4af7c50693",
     "market_research/sports_research/data.py": "d4cbbbd2e1d0796d073e3ceec63191743775042088ecb57f27d5a7ce13a02b13",
+    "market_research/sports_research/features.py": "407d5c35390bd11bad03e3ea93a3d089b5ffec139e6ca00454491163fa7ae153",
+    "market_research/sports_research/filters.py": "7c25407d8b764dcbf712c2d6d9378c0a2d815167c27c3ad1349218298822061f",
+    "market_research/sports_research/p99.py": "5936d3147f3ab3fa429e2313b03e09f6b03a9b975cda52df0335c5a53d2696d2",
+    "market_research/sports_research/prospective.py": "e2af40c30f85bbb0805c05e088ce905ab1fe3d1882bcab5bbae7e81b87af3749",
     "market_research/sports_research/statistics.py": "05d6d9e3115f41cc7ea884e53b6630d53874e648414734d4d164186e315f7997",
     "market_research/sports_research/study.py": "0f2fb137bfe8397a9959b45d4996dd4bca82ba8c16a27453f18685b742e1ca0c",
+    "market_research/tests/test_depth_shadow.py": "19ceabce4ff3e6db3c6f866989024694cca27a2ce4c3c19f0eacb322e776c682",
     "market_research/tests/test_game_p01_hourly_comparison.py": "c6c460e620f7cf71c2b3c96fb33dae83d4f822f9e78b7d496497758d4089fdbb",
     "market_research/tests/test_game_p01_month.py": "2f0b51a097353d6fd286d5fd7a380f44b802e2ebec5f7d404c672d5d610fb261",
     "market_research/tests/test_game_p01_paper.py": "6d82e22f4ec9b4ee3bf637d023c8b481e37766a7b971b8965dcda8cf0f569eb5",
     "market_research/tests/test_game_p01_snapshot_limits.py": "1c117419c67c0213beccba2920553bb8fb07451c2e4926754e7404be5ae42dd8",
+    "market_research/tests/test_native_sports.py": "51c5ef7d5da00fa8ce9785306971b918287545ff2e9187b48dda6afc965552af",
+    "market_research/tests/test_sports_forward_recovery.py": "b46501e2356542d75c051c0b1544e5d55ce2caa4c5e02765560fae63751ddccc",
     "market_research/tests/test_sports_research.py": "dbd838d86ee5bdab59218c6a15a9f7904f6e9c8dec98caa625e893978ed31bcb",
     "market_research/tests/test_sports_research_p99.py": "b08029acf45f2898bba5d864596ae4ca79e68ba95ab75d0376ed2549a7eed21d",
     "metaculus_bot/__init__.py": "bd732fa010dffb0eb2971533b5664d5813cf035c84e5627bd61dd31e10fda7cf",
     "metaculus_bot/api.py": "74cbb21d1d461e758cf4d50d65ce50c4d5d310fad9015b27f15727d7d4a914ab",
     "metaculus_bot/automation.py": "cc6f63a5f7ebbe2f53563627d90fd2591eb1116e65fc9f7627d00a1fc77645ef",
-    "metaculus_bot/checkpoint.py": "5f9057b1af7c03fd98f4aa8039a1294d46ea897f80776a49813848a9279e07a5",
+    "metaculus_bot/checkpoint.py": "19a7d53e1b71da2848e2becfe2c48033d34780981398b5016cf1bf5ae2f56a48",
     "metaculus_bot/coverage.ini": "b30e73dc3e7d9269aff3f3446a23c95a02de30000720b6a8db7e5e0730c54a16",
     "metaculus_bot/ensemble_contract_test.py": "6c53dd316c1ff40a156a79d7fc42919b654a580627c94f49ec5d14b8aeb1d5f3",
     "metaculus_bot/ensemble_job.py": "2372832327daf31a7ad19819c695c8ebe7e3a7b432bc50892fd6b938db2ee51a",
     "metaculus_bot/evaluation.py": "4c0646cf12a981448e7d46bda71a561fda07044e031a050e3c661bf4061b9698",
     "metaculus_bot/fred.py": "9b8dc4f89cf450ff3f79563165defce415b701e243172e63edf1d32dab888730",
-    "metaculus_bot/llm.py": "8ca9d3910ec4c2ab704ef80b8968a1388beb3ef444d539ec43607779b6c3c5fb",
-    "metaculus_bot/minibench.py": "547ae90b21e877fbe0376133180d00234126d16055b7d0a7c5ee1cb5cebbd4ac",
+    "metaculus_bot/llm.py": "2234a96f4a424068a24a8704747e1ca3023a9277848ccbdf13c55af17bd480d1",
+    "metaculus_bot/minibench.py": "c72126d573d9d1dd6223f981d1f0dee3f4a8eb30ed548b0cecce4b27372da2c8",
     "metaculus_bot/probability.py": "db3cf85667f643a74ba03bb88a706dbeb1859595ef855596bffe5a0f14aa692b",
     "metaculus_bot/questions.py": "d73518e401d91f73b322490e95dc5e0d91ae0e20ccab3c38fbae2a845b67e95f",
     "metaculus_bot/readiness.py": "62f5767dff322964036eec5a8fa8a52293329b314bc002254b1b9ec8a0e441c9",
@@ -317,9 +134,9 @@
     "metaculus_bot/tests/test_evaluation.py": "a190766a849e1b3b28d79d90be01a79281bace39266ab40c7341c3c4a6844e13",
     "metaculus_bot/tests/test_fred.py": "dca8af949e9437cc50d03d472d5846139181eaf158eb329d89b2d0faa5b3300a",
     "metaculus_bot/tests/test_github_automation.py": "2a5b46b182a163cfd42c8fad62cb565bb993d91532fe20a2696ec7a184580ef3",
-    "metaculus_bot/tests/test_minibench.py": "c2446ac40cce5add273d32cb9264d1632c4200fefd04bbe660360243842ede08",
+    "metaculus_bot/tests/test_minibench.py": "856cec8887cee269f7d11c9e4fa44169f68123736e64b59aad2c0e065ca9c12f",
     "metaculus_bot/tests/test_numeric_reliability.py": "efd5fb9e5010780a41836d6e3fc2db6147e8f5d1ca5f14893c7622b39cdc4863",
-    "metaculus_bot/tests/test_nvidia.py": "580734872ed1437e6c8c60d8237ac273687912966ba77eea40d8230fecdce10f",
+    "metaculus_bot/tests/test_nvidia.py": "7eb416b55ed65e5c8983317e7751c9589c714704c108b67aadf61205b8321f83",
     "metaculus_bot/tests/test_probability.py": "45354d6a43502d2c80afdeba41513143382ea3cf6def0470ae90961ecee2127a",
     "metaculus_bot/tests/test_research_budget.py": "2a84c95b3d2f19e0bf12fbd08728b94fc4e147b781448e4ec0dafef88849e100",
     "metaculus_bot/tests/test_tabular.py": "bff0afb14175a05d56be13998b62abba54c02ad8c22d010f0f31c54504bfcf5e",
@@ -346,14 +163,5 @@
     "tests/runtime-controls-coverage.ini": "a39d49ff753ebc9e7968df289063ba4ebe396c001018967046f31b5fab53fe23",
     "tests/test_service_preflight.py": "cc3b3adbad48de6ecf9d621a0b5f23df78432cf9eed90ee612ffd08bd5ab5fa5",
     "tests/test_toto_loading.py": "1e2a182ab22523e3a92583024d11bad1422abc3739fbcc30963e616797db5447"
-  },
-  "source_commit": "42f93feeb2fea375beef3be8dbce66162a811894",
-  "verification": {
-    "excluded_insufficient_history": 62,
-    "full_perpetual_run": 42311504402,
-    "hardware": "GitHub standard Ubuntu CPU",
-    "published": 23,
-    "runtime_sha": "72f12aa7f52ae5e3aaa20f068f0ef959072a9544",
-    "scope": "Genuine seven-model public forecasts; not execution or predictive-performance validation. Existing short-history weighting fallback is preserved."
   }
 }

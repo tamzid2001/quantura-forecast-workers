@@ -23,6 +23,7 @@ from . import game_p01_paper as feed
 from .sports_research.features import FIELDS as RESEARCH_FIELDS, capture as capture_research_features
 from .game_p01_limit import (Journal, RULES, TERMINAL, cash_reserve, confirmed, paper_observe, plan, ranked, statistics)
 from .game_p01_portfolio import amount, fee
+from . import depth_shadow
 
 ARTIFACT = "quantura-games-p01-limit-paper-v1"
 WORKFLOW = ".github/workflows/games-p01-limit-paper.yml"
@@ -42,7 +43,7 @@ def restore_paper(journal):
         return
     artifact = available[0]
     feed.validate_run(artifact, WORKFLOW)
-    state = feed.compressed_json(feed.github(f"actions/artifacts/{artifact['id']}/zip", True), "limit-state.json.gz")
+    state = feed.read_artifact(artifact, "limit-state.json.gz")
     if (state.get("schema") != 1 or state.get("mode") != "paper" or state.get("account") != "public"
             or state.get("rules_hash") != RULES.fingerprint):
         raise ValueError("INVALID_LIMIT_PAPER_CHECKPOINT")
@@ -118,6 +119,8 @@ class Worker:
         self.stop = False
         self.last_settlement = self.last_stats = self.last_prepare = 0
         self.prepared_hour, self.rows = None, None
+        self.depth_state = depth_shadow.initialize(journal.state, time.time()) if journal.state['mode']=='paper' else None
+        self.journal.save()
 
     def enter_hour(self, hour):
         state = self.journal.state
@@ -125,13 +128,16 @@ class Worker:
             return
         rows = self.rows if self.prepared_hour == hour else source_rows(hour)
         candidates, counts = signals(rows, hour, state["identities"], self.venues)
-        candidates = [r for r in candidates if not self.journal.blocked(r["fixture_id"])]
         with ThreadPoolExecutor(max_workers=4) as pool:
             prepared = list(pool.map(prepare, candidates))
             for _, error in prepared:
                 if error:
                     counts[error] += 1
-            planned = list(pool.map(current_plan, [value for value, _ in prepared if value]))
+            if self.depth_state is not None:
+                depth_shadow.choose(self.depth_state, [v for v,_ in prepared if v], hour, books.book, time.time)
+                self.journal.save()
+            planned = list(pool.map(current_plan, [value for value, _ in prepared if value
+                and not self.journal.blocked(value['candidate']['fixture_id'])]))
         for _, error in planned:
             if error:
                 counts[error] += 1
@@ -194,6 +200,7 @@ class Worker:
     def reconcile(self, now):
         state, marks = self.journal.state, {}
         settlement_due = now-self.last_settlement >= 60
+        self.depth_marks = self.reconcile_depth(now, settlement_due) if self.depth_state is not None else {}
         for order in state["orders"]:
             if order.get("payout") is not None:
                 continue
@@ -239,9 +246,45 @@ class Worker:
         self.journal.save()
         return marks
 
+    def reconcile_depth(self, now, settlement_due):
+        """Independent paper-only fills/credits, with real receipt timestamps."""
+        marks={}
+        for order in self.depth_state['orders']:
+            if order.get('payout') is not None:
+                continue
+            try:
+                if order['state']=='awaiting_arrival':
+                    if now-order['decision_at']>depth_shadow.RULES.maximum_arrival_seconds:
+                        depth_shadow.arrive(order,{},now)
+                    else:
+                        current=books.book(order)
+                        depth_shadow.arrive(order,current,time.time())
+                if amount(order['filled'])>0:
+                    if settlement_due:
+                        payout=books.payout(order)
+                        if payout is not None:
+                            order.update(payout=str(payout),settlement_at=int(time.time()),
+                                         settlement_time_basis='first_confirmed_receipt')
+                    if order.get('payout') is None:
+                        current=books.book(order)
+                        depth_shadow._book(current,time.time())
+                        marks[order['forecast_id']]={'bid':max(amount(p) for p,_ in current['bids']),
+                                                     'at':current['received_at']}
+            except (RuntimeError,ValueError,KeyError,ArithmeticError) as error:
+                self.depth_state.setdefault('errors',{})[type(error).__name__]=self.depth_state.get('errors',{}).get(type(error).__name__,0)+1
+            self.journal.save()
+        return marks
+
     def report(self, directory, marks):
         value = statistics(self.journal.state, marks, time.time())
         value["entry_halt"] = self.journal.state.get("entry_halt")
+        value['source_health']=self.journal.state.get('source_health',{'status':'not_yet_observed'})
+        if self.depth_state is not None:
+            comparison=depth_shadow.report(self.depth_state,getattr(self,'depth_marks',{}),time.time())
+            value['tight_depth_comparison']=comparison
+            Path(directory).mkdir(parents=True,exist_ok=True)
+            Path(directory,'depth-shadow-stats.json').write_text(json.dumps(comparison,indent=2)+'\n')
+            Path(directory,'depth-shadow-evidence.json').write_text(json.dumps(self.depth_state,sort_keys=True)+'\n')
         log("sports_limit_stats", **value)
         self.journal.checkpoint(directory)
         Path(directory, "stats.json").write_text(json.dumps(value, indent=2)+"\n")
@@ -266,7 +309,11 @@ class Worker:
                     if 60 <= now-hour <= RULES.max_signal_age:
                         try:
                             self.enter_hour(hour)
-                        except (RuntimeError, ValueError, KeyError):
+                            self.journal.state['source_health']={'status':'observed','hour':hour,'checked_at':time.time()}
+                        except (RuntimeError, ValueError, KeyError) as error:
+                            self.journal.state['source_health']={'status':'unavailable','hour':hour,'checked_at':time.time(),
+                                'error':str(error)[:180] if isinstance(error,(RuntimeError,ValueError)) else 'INCOMPLETE_SOURCE_DATA'}
+                            self.journal.save()
                             log("sports_limit_source_retry", hour=hour)
                     elif now-hour > RULES.max_signal_age:
                         self.journal.state["coverage"][str(hour)] = {"missed_forward_decision_window": 1}
@@ -279,7 +326,10 @@ class Worker:
                     try:
                         self.rows = source_rows(hour+3600)
                         self.prepared_hour = hour+3600
-                    except (RuntimeError, ValueError, KeyError):
+                    except (RuntimeError, ValueError, KeyError) as error:
+                        self.journal.state['source_health']={'status':'prefetch_unavailable','hour':hour+3600,'checked_at':time.time(),
+                            'error':str(error)[:180] if isinstance(error,(RuntimeError,ValueError)) else 'INCOMPLETE_SOURCE_DATA'}
+                        self.journal.save()
                         log("sports_limit_prefetch_retry")
                 if now-self.last_stats >= 60:
                     self.report(directory, marks)

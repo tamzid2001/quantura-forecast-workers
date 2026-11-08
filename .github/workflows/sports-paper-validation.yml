@@ -6,6 +6,16 @@ on:
       - .github/workflows/sports-month-backtest.yml
       - market_research/tests/test_*recovery.py
       - market_research/game_p01_*.py
+      - market_research/native_sports.py
+      - market_research/depth_shadow.py
+      - market_research/sports_recovery.py
+      - market_research/pregame_screener.py
+      - market_research/tests/test_native_sports.py
+      - market_research/tests/test_depth_shadow.py
+      - market_research/tests/test_sports_forward_recovery.py
+      - .github/workflows/hourly-game-screener.yml
+      - .github/workflows/games-p01-paper.yml
+      - .github/workflows/games-p01-limit-paper.yml
       - market_research/sports_research/**
       - market_research/tests/test_game_p01_*.py
       - market_research/tests/test_sports_research*.py
@@ -51,10 +61,30 @@ jobs:
           assert float(report.attrib['branch-rate']) >= .70
           print('Line coverage:', report.attrib['line-rate'], 'branch coverage:', report.attrib['branch-rate'])
           PY
+      - name: Verify direct provider reads, explicit outage recovery and depth execution
+        run: |
+          env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT python -m pytest -q \
+            market_research/tests/test_native_sports.py \
+            market_research/tests/test_sports_forward_recovery.py \
+            market_research/tests/test_depth_shadow.py \
+            --cov=market_research.native_sports --cov=market_research.sports_recovery \
+            --cov=market_research.depth_shadow --cov-branch --cov-fail-under=90 \
+            --cov-report=term-missing --cov-report=xml:artifacts/sports-recovery-coverage.xml
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root=ET.parse('artifacts/sports-recovery-coverage.xml').getroot()
+          assert len(root.findall('.//class'))==3
+          assert float(root.attrib['line-rate']) >= .90
+          assert float(root.attrib['branch-rate']) >= .70
+          assert any(int(n.attrib['hits'])>0 for n in root.findall('.//line'))
+          print('Recovery coverage:',root.attrib['line-rate'],root.attrib['branch-rate'])
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: sports-hourly-paper-coverage
-          path: artifacts/hourly-paper-coverage.xml
+          path: |
+            artifacts/hourly-paper-coverage.xml
+            artifacts/sports-recovery-coverage.xml
           if-no-files-found: error
           retention-days: 30

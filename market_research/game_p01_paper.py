@@ -132,8 +132,17 @@ def validate_run(artifact, workflow):
     run = github(f"actions/runs/{artifact['workflow_run']['id']}")
     if (run.get("path") != workflow or run.get("head_branch") != "main"
             or run.get("repository", {}).get("full_name") != REPO
+            or run.get('head_sha') != artifact['workflow_run'].get('head_sha')
             or run.get("event") not in ("schedule", "workflow_dispatch")):
         raise ValueError("UNTRUSTED_ARTIFACT_PROVENANCE")
+
+
+def read_artifact(artifact, member):
+    blob=github(f"actions/artifacts/{artifact['id']}/zip", True)
+    expected=artifact.get('digest')
+    if expected is not None and expected!='sha256:'+hashlib.sha256(blob).hexdigest():
+        raise ValueError('ARTIFACT_DIGEST_MISMATCH')
+    return compressed_json(blob, member)
 
 
 def fresh_state(now):
@@ -146,6 +155,8 @@ def fresh_state(now):
 
 
 def validate_state(state):
+    from .sports_recovery import validate_recovery
+    validate_recovery(state)
     if state.get("schema") != 1 or state.get("mode") != "paper_only":
         raise ValueError("INVALID_PAPER_CHECKPOINT")
     for rule in (BASELINE, SHALLOW, *FORWARD_HOURLY_RULES):
@@ -186,7 +197,7 @@ def restore(now):
         return fresh_state(now)
     newest = available[0]
     validate_run(newest, WORKFLOW)
-    state = validate_state(compressed_json(github(f"actions/artifacts/{newest['id']}/zip", True), "paper-state.json.gz"))
+    state = validate_state(read_artifact(newest, "paper-state.json.gz"))
     ensure_portfolios(state, now)
     event("paper_checkpoint_restored", artifact_id=newest["id"], next_hour=iso(state["next_hour"]))
     return state
@@ -303,13 +314,15 @@ def snapshots_at(hour, catalog):
         if hour-stamp(artifact["created_at"]) > 6*3600:
             raise RuntimeError("STALE_POINT_IN_TIME_FEED:"+feed)
         validate_run(artifact, ".github/workflows/hourly-game-screener.yml")
-        snapshot = compressed_json(github(f"actions/artifacts/{artifact['id']}/zip", True), "snapshot.json.gz")
+        snapshot = read_artifact(artifact, "snapshot.json.gz")
         if (snapshot.get("schema_version") != "quantura-public-screener-v1" or snapshot.get("feed") != feed
                 or stamp(artifact["created_at"]) < stamp(snapshot["published_at"])):
             raise ValueError("INVALID_PUBLIC_SNAPSHOT")
         proof[feed] = artifact["id"]
         for row in snapshot.get("data", {}).get("items", []):
-            if model_verified(row) and stamp(row["generated_at"]) <= hour:
+            if model_verified(row):
+                if not stamp(row['input_cutoff'])<=stamp(row['generated_at'])<=stamp(snapshot['published_at'])<=stamp(artifact['created_at'])<=hour:
+                    raise ValueError('FORECAST_PUBLICATION_TIMESTAMP_ORDER')
                 rows.append({**row, "artifact_id": artifact["id"], "publication_ts": stamp(artifact["created_at"])})
     # Shards must not duplicate the same outcome with conflicting predictions.
     unique = {}
@@ -483,14 +496,19 @@ def update_settlements(state, now):
 
 
 def stats(state, directory):
+    from .sports_recovery import by_epoch
     result = {"mode": "paper_only", "activation_at": iso(state["activation_at"]),
               "as_of": iso(state.get("last_run_at", int(time.time()))),
               "next_hour": iso(state["next_hour"]), "coverage": state["coverage"],
               "catchup_pending": state.get('catchup_pending', False),
               "firestore_writes": 0, "cloud_storage_writes": 0, "live_orders": 0,
+              "observation_gaps": state.get('observation_gaps', []),
+              "continuous_observation_coverage": not bool(state.get('observation_gaps')),
+              "active_observation_epoch": state.get('active_observation_epoch'),
               "portfolios": {}}
     for name, portfolio in state["portfolios"].items():
         value = {**performance(portfolio["trades"]), "equity": portfolio["equity"]}
+        value['by_observation_epoch'] = by_epoch(portfolio, performance)
         if name in {r.name for r in FORWARD_HOURLY_RULES}:
             value.update(label=portfolio["label"], activation_at=iso(portfolio["activation_at"]),
                          first_signal_at=iso(portfolio["first_signal_at"]), coverage=portfolio["coverage"],
@@ -518,10 +536,19 @@ def stats(state, directory):
     comparison = {"mode": "paper_only", "as_of": result["as_of"], "live_orders": 0,
                   "next_hour": result["next_hour"], "last_errors": state.get("last_errors", []),
                   "catchup_pending": result['catchup_pending'],
+                  "observation_gaps": result['observation_gaps'],
+                  "continuous_observation_coverage": result['continuous_observation_coverage'],
+                  "active_observation_epoch": result['active_observation_epoch'],
                   "source_coverage": state["coverage"],
                   "portfolios": {r.name: result["portfolios"][r.name] for r in FORWARD_HOURLY_RULES}}
     (directory/"comparison-stats.json").write_text(json.dumps(comparison, indent=2)+"\n")
-    (directory/"comparison-summary.md").write_text(comparison_markdown(comparison))
+    markdown = comparison_markdown(comparison)
+    if result['observation_gaps']:
+        markdown += '\n## Observation outage and forward recovery\n\n'
+        markdown += 'Coverage is discontinuous. No trades were reconstructed for these intervals. Cumulative P&L is recorded trades only; inspect by_observation_epoch for separate cohorts.\n\n'
+        for gap in result['observation_gaps']:
+            markdown += f"- Unobserved: {iso(gap['start'])} through {iso(gap['end_exclusive'])} (exclusive); {gap['unobserved_hours']} hours. New games only from the recovery epoch.\n"
+    (directory/"comparison-summary.md").write_text(markdown)
     fields = ["portfolio", "fixture_id", "provider", "symbol", "event_title", "signal_side", "side",
               "original_forecast_id", "artifact_id", "forecast_sha256", "published_at",
               "signal_at", "signal_quote_at", "signal_ask", "p01", "final_p01", "hourly_discount",
@@ -533,7 +560,8 @@ def stats(state, directory):
         writer.writerows(t for t in ledger if t["portfolio"] in comparison["portfolios"])
 
 
-def run(directory, now=None, max_hours=12):
+def run(directory, now=None, max_hours=12, resume_after_gap=False):
+    from .sports_recovery import resume_forward, epoch_rows, tag_new_trades
     now = int(time.time()) if now is None else now
     state = restore(now)
     ensure_portfolios(state, now)
@@ -542,7 +570,11 @@ def run(directory, now=None, max_hours=12):
     try:
         if type(max_hours) is not int or not 1 <= max_hours <= 48:
             raise ValueError('INVALID_REPLAY_BATCH_SIZE')
-        catalog = {feed: artifacts("quantura-public-"+feed, through=state['next_hour']) for feed in FEEDS}
+        catalog = {feed: artifacts("quantura-public-"+feed, through=(now if resume_after_gap else state['next_hour'])) for feed in FEEDS}
+        if resume_after_gap:
+            gap=resume_forward(state, now, catalog, snapshots_at)
+            save(state,directory)
+            event('paper_forward_epoch_started', **gap)
         # An old cursor is not itself evidence of data loss. Replay consecutive
         # hours from retained point-in-time evidence, with the existing missing,
         # stale, provenance and publication checks intact. Bound each invocation.
@@ -550,7 +582,11 @@ def run(directory, now=None, max_hours=12):
         while state["next_hour"]+120 <= now and processed < max_hours and time.monotonic() < deadline:
             hour = state["next_hour"]
             rows, proof = snapshots_at(hour, catalog)
+            rows, excluded_old_games = epoch_rows(state, rows, stamp)
             candidates, counts = candidates_at(rows, hour, state["identities"])
+            if excluded_old_games:
+                counts['pre_recovery_games_excluded'] = counts.get('pre_recovery_games_excluded', 0)+excluded_old_games
+            before = {name:len(p['trades']) for name,p in state['portfolios'].items()}
             for rule in (BASELINE, SHALLOW):
                 portfolio = state["portfolios"][rule.name]
                 chosen = select(candidates, [t["fixture_id"] for t in portfolio["trades"]], rule)
@@ -566,6 +602,7 @@ def run(directory, now=None, max_hours=12):
                 if hour >= portfolio["first_signal_at"]:
                     portfolio["coverage"][str(hour)] = {"selected_entries": len(chosen), "skips": skips}
             follow_tight(parent_choices, state["portfolios"][TIGHT.name], hour)
+            tag_new_trades(state,before)
             state["coverage"][str(hour)] = {"candidate_outcomes": len(candidates), "skips": dict(counts), "artifact_ids": proof}
             state["next_hour"] += 3600
             processed += 1
@@ -597,5 +634,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument('--max-hours', type=int, default=12, help='Consecutive historical hours per invocation (1–48); never skips gaps')
+    parser.add_argument('--resume-forward-after-gap', action='store_true', help='Explicitly record an unrecoverable observation gap and start a separate future cohort, preserving old trades')
     args = parser.parse_args()
-    run(args.output, max_hours=args.max_hours)
+    run(args.output, max_hours=args.max_hours, resume_after_gap=args.resume_forward_after_gap)
