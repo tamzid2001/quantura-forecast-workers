@@ -145,6 +145,56 @@ def test_no_optimistic_bid_mark_when_receipt_missing():
     report=d.report(s,{},7263)
     assert report['equity']['unmarked_positions']==1
     assert 'max_sampled_bid_drawdown_usd' not in report['equity']
+    assert report['depth_liquidation_equity']['current_complete'] is False
+    assert report['depth_liquidation_equity']['current_pnl_usd'] is None
+
+
+def test_liquidation_values_bid_depth_and_exit_fees_with_distinct_drawdown():
+    s=intent();o=s['orders'][0];d.arrive(o,book(7262),7262)
+    marked=d.report(s,{'forecast':{'at':7263,'bid':'.57','book':book(7263)}},7263)
+    value=marked['depth_liquidation_equity']
+    # One share costs $0.60 including entry fee. Selling at $0.57 costs
+    # another $0.02, leaving $0.55: a $0.05 estimated liquidation loss.
+    assert d.amount(value['current_pnl_usd'])==d.amount('-.05')
+    assert d.amount(value['max_sampled_drawdown_usd'])==d.amount('.05')
+    assert marked['equity']['sampled_pnl_usd']==pytest.approx(-.03)
+    evidence=value['mark_evidence'][0]
+    assert evidence['estimated_exit_fees_usd']=='0.02' and evidence['unliquidated_quantity']=='0'
+    stale=d.report(s,{'forecast':{'at':7263,'bid':'.57','book':book(7263)}},7270)['depth_liquidation_equity']
+    assert stale['current_pnl_usd'] is None and not stale['current_complete']
+    assert stale['last_complete_at']==7263 and stale['samples']==1
+
+
+def test_insufficient_depth_is_not_a_full_liquidation_mark_or_zero_value():
+    s=intent();o=s['orders'][0];d.arrive(o,book(7262),7262)
+    thin=book(7263,bids=[['.57','.50']])
+    value=d.report(s,{'forecast':{'at':7263,'bid':'.57','book':thin}},7263)['depth_liquidation_equity']
+    assert value['current_pnl_usd'] is None and 'max_sampled_drawdown_usd' not in value
+    assert value['unpriced_positions'][0]['reason']=='INSUFFICIENT_DISPLAYED_BID_DEPTH'
+    assert d.amount(value['mark_evidence'][0]['unliquidated_quantity'])==1
+
+
+def test_liquidation_walks_multiple_levels_and_respects_quantity_steps():
+    s=intent(m=metadata(quantity_step='.01',minimum_quantity='.01'))
+    o=s['orders'][0];d.arrive(o,book(7262,asks=[['.58','1']]),7262)
+    bids=book(7263,bids=[['.57','.257'],['.56','.759']])
+    value=d.report(s,{'forecast':{'at':7263,'bid':'.57','book':bids}},7263)['depth_liquidation_equity']
+    assert value['current_complete']
+    assert d.amount(value['current_pnl_usd'])==d.amount('-.065')
+    assert d.amount(value['mark_evidence'][0]['gross_proceeds_usd'])==d.amount('.5625')
+    # Official resolution needs no bid and eliminates all hypothetical exit fees.
+    o.update(payout='1',settlement_at=8000)
+    resolved=d.report(s,{},8000)['depth_liquidation_equity']
+    assert resolved['current_complete'] and d.amount(resolved['current_pnl_usd'])==d.amount('.4')
+
+
+def test_duplicate_contract_cannot_reuse_one_snapshot_of_liquidation_depth():
+    s=intent();o=s['orders'][0];d.arrive(o,book(7262),7262)
+    values=d.trades(s)
+    values.append({**values[0],'fixture_id':'different-game','forecast_id':'other'})
+    value=d.sample_liquidation(values,{'forecast':{'book':book(7263)},'other':{'book':book(7263)}},7263,{})
+    assert value['current_pnl_usd'] is None
+    assert value['unpriced_positions'][0]['reason']=='SHARED_DEPTH_CANNOT_BE_REUSED'
 
 
 def test_worker_depth_comparison_survives_sqlite_restore_without_legacy_edits(tmp_path):
@@ -166,6 +216,7 @@ def test_worker_depth_comparison_survives_sqlite_restore_without_legacy_edits(tm
             w.depth_marks=w.reconcile_depth(7262,False)
             w.report(tmp_path,w.depth_marks)
         assert json.loads((tmp_path/'depth-shadow-stats.json').read_text())['entries']==1
+        assert json.loads((tmp_path/'depth-shadow-stats.json').read_text())['depth_liquidation_equity']['current_complete']
         assert json.loads((tmp_path/'stats.json').read_text())['entries']==0
     finally:journal.close()
     j2=Journal(path,'paper',now=8000)

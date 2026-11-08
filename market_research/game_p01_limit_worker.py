@@ -269,7 +269,7 @@ class Worker:
                         current=books.book(order)
                         depth_shadow._book(current,time.time())
                         marks[order['forecast_id']]={'bid':max(amount(p) for p,_ in current['bids']),
-                                                     'at':current['received_at']}
+                                                     'at':current['received_at'],'book':current}
             except (RuntimeError,ValueError,KeyError,ArithmeticError) as error:
                 self.depth_state.setdefault('errors',{})[type(error).__name__]=self.depth_state.get('errors',{}).get(type(error).__name__,0)+1
             self.journal.save()

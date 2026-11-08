@@ -204,9 +204,60 @@ def trades(state):
     return [{**o,'quantity':o['filled'],'decision_at':o['first_fill_at']} for o in state['orders'] if amount(o['filled'])>0]
 
 
+def sample_liquidation(values,marks,now,tracking):
+    """Depth-and-exit-fee estimate, separate from a top-bid portfolio mark.
+
+    A partial or unavailable book cannot value the whole position. Preserve
+    prior complete samples for drawdown, but never present them as current.
+    No order is sent, and a REST snapshot is not an executable sale receipt.
+    """
+    tracking=dict(tracking)
+    tracking.update(checks=tracking.get('checks',0)+1,last_checked_at=now,
+                    current_complete=False,current_pnl_usd=None,unpriced_positions=[])
+    unrealized=Decimal(0);receipts=[];used=set()
+    for trade in values:
+        if trade.get('payout') is not None:
+            continue
+        try:
+            key=trade['provider'],trade['contract_id']
+            if key in used:
+                raise ValueError('SHARED_DEPTH_CANNOT_BE_REUSED')
+            used.add(key)
+            book=marks.get(trade['forecast_id'],{}).get('book',{})
+            _book(book,now)
+            left=amount(trade['quantity']);proceeds=charges=Decimal(0)
+            step=amount(trade['quantity_step'])
+            for price,available in sorted(((amount(p),amount(q)) for p,q in book['bids']),reverse=True):
+                take=(min(left,available)/step).to_integral_value(rounding=ROUND_DOWN)*step
+                if take<=0:
+                    continue
+                proceeds+=take*price
+                charges+=fee(trade['provider'],take,price,trade['metadata']['fee_coefficient'])
+                left-=take
+                if left==0:
+                    break
+            receipts.append({'fixture_id':trade['fixture_id'],'book':book,'unliquidated_quantity':str(left),
+                             'gross_proceeds_usd':str(proceeds),'estimated_exit_fees_usd':str(charges)})
+            if left:
+                raise ValueError('INSUFFICIENT_DISPLAYED_BID_DEPTH')
+            unrealized+=proceeds-charges-amount(trade['entry_cost'])-amount(trade['entry_fee'])
+        except (ValueError,RuntimeError,KeyError,ArithmeticError) as error:
+            tracking['unpriced_positions'].append({'fixture_id':trade['fixture_id'],'reason':str(error)})
+    tracking['mark_evidence']=receipts
+    if tracking['unpriced_positions']:
+        return tracking
+    pnl=amount(performance(values)['net_pnl_usd'])+unrealized
+    peak=max(amount(tracking.get('peak_usd','0')),pnl)
+    tracking.update(current_complete=True,current_pnl_usd=str(pnl),last_complete_at=now,
+                    samples=tracking.get('samples',0)+1,peak_usd=str(peak),
+                    max_sampled_drawdown_usd=str(max(amount(tracking.get('max_sampled_drawdown_usd','0')),peak-pnl)))
+    return tracking
+
+
 def report(state,marks,now):
     values=trades(state)
     state['equity']=sample_equity(values,marks,now,state['equity'])
+    state['liquidation_equity']=sample_liquidation(values,marks,now,state.get('liquidation_equity',{}))
     return {**performance(values),'strategy':RULES.name,'rules_hash':RULES.fingerprint,
         'mode':'paper_only','live_orders':0,'activation_at':state['activation_at'],'first_signal_at':state['first_signal_at'],
         'execution':'first_fresh_post_latency_depth_sample_marketable_limit_ioc_proxy',
@@ -214,4 +265,6 @@ def report(state,marks,now):
         'unfilled_intents':sum(o['state']=='ioc_observed' and amount(o['filled'])==0 for o in state['orders']),
         'unobserved_arrivals':sum(o['state']=='arrival_unobserved' for o in state['orders']),
         'partial_fills':sum(0<amount(o['filled'])<amount(o['quantity']) for o in state['orders']),
-        'equity':state['equity'],'coverage':state['coverage']}
+        'equity':state['equity'],'depth_liquidation_equity':state['liquidation_equity'],
+        'liquidation_basis':'sampled_displayed_bids_less_modeled_exit_fees_not_exchange_fills_or_continuous_drawdown',
+        'coverage':state['coverage']}

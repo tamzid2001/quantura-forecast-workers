@@ -93,6 +93,16 @@ This remains an observed-depth simulation. REST samples cannot reproduce matchin
 engine latency, queue priority, hidden liquidity or actual exchange fills. No
 profits or live-trading readiness are inferred from unit fixtures.
 
+The separate `depth_liquidation_equity` report walks fresh displayed bids for
+the full open quantity, respects quantity increments, and deducts modeled taker
+exit fees as well as the already paid entry cost and fee. Insufficient or missing
+depth produces a null current portfolio value with an explicit coverage reason;
+it cannot become an optimistic best-bid valuation or an invented zero price.
+Prior complete samples retain their timestamps and sampled drawdown history.
+The older top-bid metric remains separately labeled for comparability. Neither
+sampled metric establishes continuous intratrade drawdown, a guaranteed sale, or
+matching-engine execution. Raw liquidation-book evidence is retained.
+
 ## Verification and operation
 
 ```sh
