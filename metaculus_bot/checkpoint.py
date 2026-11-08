@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 import time
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -122,10 +123,40 @@ def restore(path: Path):
     if workflow:
         if not re.fullmatch(r"[A-Za-z0-9_-]+\.yml", workflow):
             raise RuntimeError("INVALID_CHECKPOINT_WORKFLOW")
-        latest = workflow_checkpoint(repo, workflow, prefix)
-        if latest:
-            restore_artifact(repo, latest, path)
+        restore_latest(repo, lambda: workflow_checkpoint(repo, workflow, prefix), path)
         return
+    restore_latest(repo, lambda: repository_checkpoint(repo, prefix), path)
+
+
+def restore_latest(repo, discover, path):
+    """Retry only a deleted-artifact race, never roll back or reset known state."""
+    newest_id = None
+    for attempt in range(3):
+        latest = discover()
+        if latest is None:
+            if newest_id is not None:
+                raise RuntimeError("CHECKPOINT_DISAPPEARED_REQUIRES_REVIEW")
+            return  # A genuinely new worker may have no prior state.
+        if newest_id is not None and latest["id"] < newest_id:
+            raise RuntimeError("CHECKPOINT_ROLLBACK_REFUSED")
+        newest_id = latest["id"]
+        try:
+            restore_artifact(repo, latest, path)
+            return
+        except subprocess.CalledProcessError as error:
+            # Do not retry authentication, throttling, corrupt archives or
+            # arbitrary failures by falling back to older quota counters.
+            stderr = error.stderr or b""
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode("utf-8", errors="replace")
+            if not re.search(r"\(HTTP (404|410)\)", stderr):
+                raise
+            if attempt == 2:
+                raise RuntimeError("CHECKPOINT_DOWNLOAD_RACE_REQUIRES_REVIEW") from None
+            time.sleep(1)
+
+
+def repository_checkpoint(repo, prefix):
     for page in range(1, 11):
         result = subprocess.run(["gh", "api", f"repos/{repo}/actions/artifacts?per_page=100&page={page}"],
                                 capture_output=True, check=True)
@@ -133,10 +164,9 @@ def restore(path: Path):
         candidates = [a for a in artifacts if a["name"].startswith(prefix) and not a["expired"]]
         if candidates:
             latest = max(candidates, key=lambda a: a["id"])
-            restore_artifact(repo, latest, path)
-            return
+            return latest
         if len(artifacts) < 100:
-            return
+            return None
     # Avoid silently dropping recovery state when an unrelated artifact backlog
     # exceeds the search bound. A failed restore must stop new generations.
     raise RuntimeError("CHECKPOINT_ARTIFACT_SEARCH_LIMIT")
@@ -170,13 +200,28 @@ def workflow_checkpoint(repo, workflow, prefix):
 def restore_artifact(repo, artifact, path):
     archive = subprocess.run(["gh", "api", f"repos/{repo}/actions/artifacts/{artifact['id']}/zip"],
                              capture_output=True, check=True).stdout
+    if len(archive) > 3_000_000:
+        raise RuntimeError("INVALID_CHECKPOINT_ARTIFACT")
+    digest = artifact.get("digest")
+    if digest is not None and digest != "sha256:" + hashlib.sha256(archive).hexdigest():
+        raise RuntimeError("CHECKPOINT_DIGEST_MISMATCH")
     with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
         members = [i for i in zipped.infolist() if i.filename == "metaculus-checkpoint.enc"]
         if len(members) != 1 or members[0].file_size > 2_000_000:
             raise RuntimeError("INVALID_CHECKPOINT_ARTIFACT")
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(zipped.read(members[0]))
-        path.chmod(0o600)
+        encrypted = zipped.read(members[0])
+        # Keep an existing checkpoint intact on an incomplete/failed write.
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".checkpoint-", delete=False) as temporary:
+            temporary_path = Path(temporary.name)
+            try:
+                temporary.write(encrypted)
+                temporary.flush()
+                os.fsync(temporary.fileno())
+                temporary_path.chmod(0o600)
+                os.replace(temporary_path, path)
+            finally:
+                temporary_path.unlink(missing_ok=True)
     print(json.dumps({"event": "metaculus_checkpoint_restored", "artifact_id": artifact["id"]}), flush=True)
 
 
