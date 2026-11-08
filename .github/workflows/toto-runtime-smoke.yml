@@ -38,4 +38,4 @@ jobs:
           name: toto-runtime-diagnostic
           path: artifacts/toto-runtime-smoke.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1

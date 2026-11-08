@@ -72,7 +72,7 @@ jobs:
           name: metaculus-probability-research-coverage-${{ github.run_id }}
           path: artifacts/metaculus-coverage.xml
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
 
       - name: Measure numeric conversion and worker recovery coverage
         run: env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT python -m pytest -q metaculus_bot/tests --cov=metaculus_bot.api --cov=metaculus_bot.runner --cov=metaculus_bot.minibench --cov=metaculus_bot.sdk.numeric_report --cov-branch --cov-report=term --cov-report=xml:artifacts/metaculus-reliability-coverage.xml
@@ -96,7 +96,7 @@ jobs:
           name: metaculus-reliability-coverage-${{ github.run_id }}
           path: artifacts/metaculus-reliability-coverage.xml
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
 
   discover:
     needs: validate
@@ -171,7 +171,7 @@ jobs:
         with:
           name: metaculus-summary-${{ github.run_id }}
           path: artifacts/metaculus-summary.json
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: ignore
       - name: Save encrypted per-forecast audit records
         if: always()
@@ -179,7 +179,7 @@ jobs:
         with:
           name: metaculus-audit-bot-${{ vars.METACULUS_BOT_ID }}-${{ github.run_id }}-${{ github.job }}
           path: artifacts/metaculus-audit.enc
-          retention-days: 90
+          retention-days: 1
           if-no-files-found: ignore
       - name: Save encrypted recovery state
         if: always()
@@ -187,7 +187,7 @@ jobs:
         with:
           name: metaculus-checkpoint-bot-${{ vars.METACULUS_BOT_ID }}-${{ github.run_id }}-${{ github.job }}
           path: artifacts/metaculus-checkpoint.enc
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: ignore
 
   time-series:
@@ -251,7 +251,7 @@ jobs:
         with:
           name: metaculus-time-series-summary-${{ github.run_id }}
           path: artifacts/metaculus-summary.json
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: ignore
       - name: Save encrypted per-forecast audit records
         if: always()
@@ -259,7 +259,7 @@ jobs:
         with:
           name: metaculus-audit-bot-${{ vars.METACULUS_BOT_ID }}-${{ github.run_id }}-${{ github.job }}
           path: artifacts/metaculus-audit.enc
-          retention-days: 90
+          retention-days: 1
           if-no-files-found: ignore
       - name: Save encrypted recovery state
         if: always()
@@ -267,5 +267,5 @@ jobs:
         with:
           name: metaculus-checkpoint-bot-${{ vars.METACULUS_BOT_ID }}-${{ github.run_id }}-${{ github.job }}
           path: artifacts/metaculus-checkpoint.enc
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: ignore

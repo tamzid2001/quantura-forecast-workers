@@ -143,13 +143,13 @@ jobs:
         with:
           name: quantura-public-stocks-home
           path: home-work/public/snapshot.json.gz
-          retention-days: 14
+          retention-days: 1
           if-no-files-found: error
       - uses: actions/upload-artifact@v7
         with:
           name: quantura-public-stocks-home-${{ needs.prepare.outputs.scan_date }}
           path: home-work/public/snapshot.json.gz
-          retention-days: 14
+          retention-days: 1
           if-no-files-found: error
       - name: Write completion marker after artifact delivery
         env:

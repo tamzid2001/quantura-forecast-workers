@@ -40,4 +40,4 @@ jobs:
           name: gateway-preflight-coverage
           path: coverage.xml
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1

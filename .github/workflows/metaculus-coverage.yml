@@ -34,5 +34,5 @@ jobs:
         with:
           name: metaculus-minibench-coverage
           path: artifacts/metaculus-minibench.json
-          retention-days: 30
+          retention-days: 1
           if-no-files-found: error

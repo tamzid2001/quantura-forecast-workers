@@ -28,5 +28,5 @@ jobs:
         with:
           name: quantura-public-${{ matrix.feed }}
           path: published/snapshot.json.gz
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error

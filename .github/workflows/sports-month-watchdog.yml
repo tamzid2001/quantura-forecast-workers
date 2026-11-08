@@ -33,4 +33,4 @@ jobs:
           name: sports-month-watchdog-result
           path: watchdog-result.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1

@@ -51,4 +51,4 @@ jobs:
           name: quantura-public-perps-${{ matrix.shard }}
           path: ${{ runner.temp }}/public-perps/snapshot.json.gz
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1

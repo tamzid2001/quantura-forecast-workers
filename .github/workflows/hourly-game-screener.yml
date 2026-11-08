@@ -75,4 +75,4 @@ jobs:
           name: quantura-public-games-${{ matrix.provider }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/public-pregame/snapshot.json.gz
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1

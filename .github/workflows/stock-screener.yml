@@ -287,7 +287,7 @@ jobs:
           name: quantura-screener-v3
           path: screener-work/final
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
       - uses: actions/setup-node@v6
         if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
         with:
@@ -308,7 +308,7 @@ jobs:
           name: quantura-public-stocks
           path: screener-work/public/snapshot.json.gz
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
       - name: Retain immutable dated stock scan
         if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
         uses: actions/upload-artifact@v7
@@ -316,7 +316,7 @@ jobs:
           name: quantura-public-stocks-${{ steps.aggregate.outputs.scan_date }}
           path: screener-work/public/snapshot.json.gz
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
       - name: Publish rolling website dataset
         if: steps.aggregate.outputs.coverage_ok == 'true' && env.PUBLISH_RESULTS == 'true'
         env:

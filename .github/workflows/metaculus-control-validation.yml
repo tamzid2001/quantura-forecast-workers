@@ -38,7 +38,7 @@ jobs:
           name: metaculus-control-plane-coverage
           path: coverage.xml
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
       - name: Verify bounded research and actual child timeout lifecycle
         run: python -m pytest -q metaculus_bot/tests --cov=metaculus_bot.research --cov-branch --cov-fail-under=90 --cov-report=xml:research-coverage.xml --cov-report=term-missing
       - name: Validate nonempty research coverage and branch threshold
@@ -56,4 +56,4 @@ jobs:
           name: metaculus-research-coverage
           path: research-coverage.xml
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1

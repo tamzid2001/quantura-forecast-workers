@@ -47,5 +47,5 @@ jobs:
           path: |
             artifacts/metaculus-readiness.json
             artifacts/metaculus-readiness.md
-          retention-days: 30
+          retention-days: 1
           if-no-files-found: error
