@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import asdict, dataclass
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, ROUND_CEILING, ROUND_DOWN, ROUND_FLOOR
 import hashlib
 import json
 import math
@@ -204,6 +204,19 @@ def trades(state):
     return [{**o,'quantity':o['filled'],'decision_at':o['first_fill_at']} for o in state['orders'] if amount(o['filled'])>0]
 
 
+def liquidation_fee(provider,quantity,price,coefficient):
+    if provider!='kalshi':
+        return fee(provider,quantity,price,coefficient)
+    # A sale has positive revenue. Align the *net sale proceeds* downward,
+    # rather than reusing buy-cost rounding. Non-direct-member cent precision,
+    # no assumed per-order accumulator rebate; this is a conservative estimate.
+    fee(provider,quantity,price,coefficient)  # Validate the shared fee inputs.
+    revenue=amount(quantity)*amount(price)
+    trade_fee=(amount(coefficient)*revenue*(1-amount(price))).quantize(Decimal('.000001'),rounding=ROUND_CEILING)
+    aligned=(revenue-trade_fee).quantize(Decimal('.01'),rounding=ROUND_FLOOR)
+    return revenue-aligned
+
+
 def sample_liquidation(values,marks,now,tracking):
     """Depth-and-exit-fee estimate, separate from a top-bid portfolio mark.
 
@@ -232,7 +245,7 @@ def sample_liquidation(values,marks,now,tracking):
                 if take<=0:
                     continue
                 proceeds+=take*price
-                charges+=fee(trade['provider'],take,price,trade['metadata']['fee_coefficient'])
+                charges+=liquidation_fee(trade['provider'],take,price,trade['metadata']['fee_coefficient'])
                 left-=take
                 if left==0:
                     break

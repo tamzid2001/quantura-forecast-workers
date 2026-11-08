@@ -180,12 +180,20 @@ def test_liquidation_walks_multiple_levels_and_respects_quantity_steps():
     bids=book(7263,bids=[['.57','.257'],['.56','.759']])
     value=d.report(s,{'forecast':{'at':7263,'bid':'.57','book':bids}},7263)['depth_liquidation_equity']
     assert value['current_complete']
-    assert d.amount(value['current_pnl_usd'])==d.amount('-.065')
+    assert d.amount(value['current_pnl_usd'])==d.amount('-.07')
     assert d.amount(value['mark_evidence'][0]['gross_proceeds_usd'])==d.amount('.5625')
     # Official resolution needs no bid and eliminates all hypothetical exit fees.
     o.update(payout='1',settlement_at=8000)
     resolved=d.report(s,{},8000)['depth_liquidation_equity']
     assert resolved['current_complete'] and d.amount(resolved['current_pnl_usd'])==d.amount('.4')
+
+
+def test_fractional_sell_fee_aligns_net_proceeds_instead_of_buy_cost():
+    # $0.1425 revenue less a $0.004290 six-decimal model fee aligns to
+    # $0.13 proceeds, hence $0.0125 fee. Buy rounding would undercharge here.
+    assert d.liquidation_fee('kalshi','.25','.57','.07')==d.amount('.0125')
+    assert d.liquidation_fee('polymarket_us','1','.5','.07')==d.amount('.02')
+    with pytest.raises(ValueError):d.liquidation_fee('kalshi','0','.5','.07')
 
 
 def test_duplicate_contract_cannot_reuse_one_snapshot_of_liquidation_depth():

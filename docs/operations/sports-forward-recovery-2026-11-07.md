@@ -102,6 +102,11 @@ Prior complete samples retain their timestamps and sampled drawdown history.
 The older top-bid metric remains separately labeled for comparability. Neither
 sampled metric establishes continuous intratrade drawdown, a guaranteed sale, or
 matching-engine execution. Raw liquidation-book evidence is retained.
+Kalshi hypothetical sales round six-decimal model fees and align positive net
+sale proceeds down to a cent, following the documented non-direct-member
+balance precision. Buy-cost rounding is not reused for sales. Per-order rounding
+rebates and account-specific FCM charges are not assumed, so these remain
+conservative modeled fees rather than exchange receipt fees.
 
 ## Verification and operation
 
@@ -142,6 +147,7 @@ evidence of new trades. No billing settings or exchange accounts are changed.
 
 - [Kalshi candlesticks](https://docs.kalshi.com/api-reference/market/get-market-candlesticks)
 - [Kalshi order-book representation and complementary asks](https://docs.kalshi.com/getting_started/orderbook_responses)
+- [Kalshi fee rounding, signed revenue and account precision](https://docs.kalshi.com/getting_started/fee_rounding)
 - Existing shared website normalizers in `predictionMarketData.ts` and the
   provider's actual public responses. Polymarket US documentation retrieval was
   unavailable during this session; the implemented read shapes were checked
