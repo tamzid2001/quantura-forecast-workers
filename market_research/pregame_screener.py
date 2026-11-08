@@ -109,12 +109,16 @@ def prune_catalog(items, cutoff, source):
     return {row["id"]: row for row in items if row.get("provider") == source and row.get("game_date", "") >= cutoff}
 
 
-def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_date=None):
+def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_date=None,
+        transport="gateway", recover_forward_catalog=False):
+    if transport not in {"gateway", "native"} or (recover_forward_catalog and (refresh_published or refresh_date)):
+        raise ValueError("INVALID_FORWARD_CATALOG_RECOVERY")
     target_date = refresh_date or game_date(time.time())
     report = {"provider": source, "game_date": target_date, "eligible": 0, "successful": 0,
               "skipped": 0, "failed": 0, "partial": True, "run_status": "running",
               "shard": shard, "shards": shards, "refresh_published":refresh_published,
-              "discovery": {}, "discovery_pages": 0, "removed_expired": 0, "failures": [], "skip_reasons": {}}
+              "discovery": {}, "discovery_pages": 0, "removed_expired": 0, "failures": [], "skip_reasons": {},
+              "data_transport": transport, "catalog_recovery": "retained_publication"}
     output = Path(os.environ.get("QUANTURA_RESEARCH_DIR", "/tmp/quantura-pregame"))
     output.mkdir(parents=True, exist_ok=True)
     # A bootstrap/provider failure must still leave an allowlisted encrypted report.
@@ -124,8 +128,21 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
     phase = "initialize"
     try:
         from .forecast import forecast_window
-        provider = KalshiProvider() if source == "kalshi" else QuanturaProvider()
-        saved = previous(feed)
+        if transport == "native":
+            from .native_sports import provider as native_provider
+            provider = native_provider(source)
+        else:
+            provider = KalshiProvider() if source == "kalshi" else QuanturaProvider()
+        try:
+            saved = previous(feed)
+        except ValueError as error:
+            if str(error) != "PUBLIC_SNAPSHOT_NOT_PUBLISHED" or not recover_forward_catalog:
+                raise
+            # An explicit new forward publication is not recovery of the old
+            # publication history. Every new row still passes today's pregame,
+            # seven-model, timestamp and schedule checks before it is published.
+            saved = {"items": []}
+            report["catalog_recovery"] = "new_forward_only_no_historical_receipts"
         catalog = prune_catalog(saved["items"], game_date(time.time() - 3 * 86400), source)
         phase = "cleanup"
         report["removed_expired"] = len(saved["items"]) - len(catalog)
@@ -248,7 +265,7 @@ def run(source, maximum, refresh_published=False, shard=0, shards=1, refresh_dat
         if catalog is not None and report["run_status"] != "failed":
             try:
                 write_public(feed, {"items": list(catalog.values()), "status": {k: report[k] for k in
-                    ("provider", "game_date", "eligible", "successful", "skipped", "skip_reasons", "failed", "partial", "run_status", "shard", "shards", "updated_at")}},
+                    ("provider", "game_date", "eligible", "successful", "skipped", "skip_reasons", "failed", "partial", "run_status", "shard", "shards", "updated_at", "data_transport", "catalog_recovery")}},
                     os.environ.get("QUANTURA_PUBLIC_DIR", "/tmp/quantura-public-pregame"))
             except Exception:
                 status_failed = True
@@ -270,6 +287,8 @@ if __name__ == "__main__":
     parser.add_argument("--refresh-date", help="Recalculate saved snapshots for a recent date, with their original pregame cutoff")
     parser.add_argument("--shard", type=int, default=0)
     parser.add_argument("--shards", type=int, default=1)
+    parser.add_argument("--transport", choices=("gateway", "native"), default="gateway")
+    parser.add_argument("--recover-forward-catalog", action="store_true", help="Allow a new forward-only catalog when old publications are absent; never refresh historical rows")
     args = parser.parse_args()
     if not 1 <= args.max_contracts <= 500:
         parser.error("Maximum must be between 1 and 500")
@@ -283,4 +302,5 @@ if __name__ == "__main__":
                 raise ValueError()
         except ValueError:
             parser.error("Refresh date must be today or one of the last three days, with --refresh-published")
-    run(args.provider, args.max_contracts, args.refresh_published, args.shard, args.shards, args.refresh_date)
+    run(args.provider, args.max_contracts, args.refresh_published, args.shard, args.shards, args.refresh_date,
+        args.transport, args.recover_forward_catalog)

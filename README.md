@@ -8,7 +8,11 @@ Scheduled stock, game, and perpetual screeners publish validated public market s
 
 The forward sports limit paper worker observes current order books, fixes its buy limit at the current ask minus one cent within ten cents below hourly P01, and expires unfilled orders at the next hour. Strict-through, depth-limited proxy fills are distinguished from actual exchange fills; price touches alone never count. Its source-only live broker adapter is excluded from this export. Paper state and reports use separate cumulative artifacts; no exchange credentials or cloud database writes are needed. Scheduled runner handoffs can miss decision windows, which are reported and never backfilled as trades.
 
+Sports forecast publication now reads official public market endpoints directly, independently of website hosting. Explicit outage recovery preserves old trades, records unobserved intervals and starts a separate future-only observation cohort. The limit paper worker also records an independent two-cent, post-latency displayed-depth IOC comparison; it imports no historical trades and cannot send orders. See docs/operations/sports-forward-recovery-2026-11-07.md for execution assumptions, gaps and verification limits.
+
 Two additional independent hourly quote-replay portfolios compare the signaled side within ten cents below completed-hour P01 with the opposite side when the original ask is more than ten cents below P01. Both require optimized seven-model forecasts published before the hour, use one dollar principal plus modeled fees, respect published quantity increments and hold to official settlement. They start at their own future activation hour without importing retrospective trades. The paper statistics artifact contains comparison-stats.json and comparison-ledger.csv alongside the legacy reports. These are next-minute ask proxies, not passive-limit or live exchange fills.
+
+A separate within-two-cent paper portfolio vetoes the within-ten-cent parent's first choice per game without replacement entries, starts at its own future activation hour, and reports alongside it. See docs/games-p01-paper.md. Expanded screener snapshots are bounded at 128 MiB; durable checkpoint and provider-response bounds remain 32 MiB. These are per-object parsing limits, not total backtest storage.
 
 Hourly metered-usage delivery calls the authenticated production billing endpoint using its own narrowly scoped credential. It logs aggregate counters only and does not publish customer data. Private-repository runners are not needed for this schedule.
 Existing backend maintenance schedules also run here with a separate credential limited to their allowlisted server jobs. Credentials cannot authorize customer API calls or live exchange orders. Raw server responses are never published in logs.
@@ -22,7 +26,3 @@ The approved Quantura Metaculus bot polls eligible competitions every 15 minutes
 [Terms of use](docs/TERMS_OF_USE.md) · [Privacy](docs/PRIVACY.md) · [Rights and licensing](docs/RIGHTS.md) · [RDMA applicability](docs/RDMA_ASSESSMENT.md).
 
 FRED economic evidence is available to the existing Metaculus worker via the server-only `FRED_API_KEY` Actions secret. It provides reviewed native-unit history and bounded research context, without changing submission or comment controls.
-
-## Within-two-cent first-choice paper tracking
-
-The separate `p01_hour_within_2c_first_choice_v1` portfolio follows the within-ten-cent parent's first game choice only when its original completed-hour ask is strictly below that hour's P01 by at most $0.02. Rejected games cannot enter via another venue, proposition or later hour. It starts at its own next future full hour, uses up to $1 principal plus modeled fees and holds to confirmed settlement. Existing rule hashes and ledgers are preserved. [Rules and accounting](docs/games-p01-paper.md). Expanded screener snapshots have a 128 MiB ceiling; durable checkpoint/provider bounds remain 32 MiB.
