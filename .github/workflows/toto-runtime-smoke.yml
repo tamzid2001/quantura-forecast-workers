@@ -2,6 +2,10 @@ name: Pinned foundation-model CPU SDK diagnostic
 on:
   workflow_dispatch:
     inputs:
+      frozen_sdk:
+        description: 'Test the unchanged sports-study adapter with its pinned local checkpoint'
+        type: boolean
+        default: false
       model:
         description: Real CPU fixture adapter to diagnose; no market publication
         type: choice
@@ -23,12 +27,34 @@ jobs:
       TIMESFM_COMMERCIAL_LICENSED: 'false'
     steps:
       - uses: actions/checkout@v6
-        with: {persist-credentials: false}
+        with:
+          ref: ${{ inputs.frozen_sdk && 'a1b30ef9526bc39d3b26154a87437a8d687f3e3b' || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        if: inputs.frozen_sdk
+        with:
+          ref: ${{ github.sha }}
+          path: operations
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with: {python-version: '3.12'}
       - name: Install the existing pinned production SDK environment
         run: python -m pip install --no-cache-dir --require-hashes -r market_research/requirements.lock
+      - name: Prepare the exact frozen SDK local checkpoint
+        if: inputs.frozen_sdk
+        env:
+          HF_HOME: ${{ runner.temp }}/toto-diagnostic
+          CODE_SHA: a1b30ef9526bc39d3b26154a87437a8d687f3e3b
+        run: python operations/.github/scripts/prepare_frozen_toto.py --receipt artifacts/frozen-toto-loading.json
+      - name: Test unchanged frozen adapter on short and unaligned CPU fixture contexts
+        if: inputs.frozen_sdk
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          HF_HOME: ${{ runner.temp }}/toto-diagnostic
+        run: python operations/.github/scripts/frozen_toto_smoke.py
       - name: Evaluate the native API and real adapter on synthetic CPU fixtures
+        if: ${{ !inputs.frozen_sdk }}
         env:
           HF_HOME: ${{ runner.temp }}/toto-diagnostic
         run: python -m scripts.toto_runtime_smoke --model "$MODEL_ID"
@@ -36,6 +62,9 @@ jobs:
         if: always()
         with:
           name: toto-runtime-diagnostic
-          path: artifacts/toto-runtime-smoke.json
+          path: |
+            artifacts/toto-runtime-smoke.json
+            artifacts/frozen-toto-smoke.json
+            artifacts/frozen-toto-loading.json
           if-no-files-found: error
           retention-days: 1
