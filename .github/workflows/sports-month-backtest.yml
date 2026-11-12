@@ -115,7 +115,6 @@ jobs:
         with:
           python-version: '3.12'
       - uses: actions/checkout@v6
-        if: inputs.recovery_sources != ''
         with:
           ref: ${{ github.sha }}
           path: operations
@@ -165,6 +164,14 @@ jobs:
           PY
       - name: Install the production locked seven-model environment
         run: python -m pip install --no-cache-dir --require-hashes -r market_research/requirements.lock
+      - name: Prepare Toto's supported local loader without changing the frozen forecast runtime
+        run: python operations/.github/scripts/prepare_frozen_toto.py --receipt work/toto-loading.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sports-month-toto-loading-${{ matrix.shard }}
+          path: work/toto-loading.json
+          retention-days: 90
+          if-no-files-found: error
       - name: Forecast and replay with time-bounded inference and durable ledgers
         run: python -m market_research.game_p01_month replay --directory work --shard "$SHARD" --seconds 12000
       - uses: actions/upload-artifact@v7
