@@ -19,7 +19,7 @@
     ".github/workflows/screener-artifact-bootstrap.yml": "0d7028cd0d9a06ce9db9cb60a889f3fa43d682ba807b9b98025f04ee1f48c43c",
     ".github/workflows/sports-month-backtest.yml": "f400b9b9645ed1c1bd2de32ef77d0984a72aef8e0ee04f4ea1917ab9ea84843c",
     ".github/workflows/sports-month-watchdog.yml": "0c75a88cebf1f92256d03791e176dec8afc8015a0703c2cc97ad7f392f6d2a65",
-    ".github/workflows/sports-paper-validation.yml": "e8e6c3073626e596d54c63b4b2b65a561c1333a12e91cd8226c6bfb4a22d66d4",
+    ".github/workflows/sports-paper-validation.yml": "f663acbcc9b1dac1c5b78794fad7dbf6486ea7a0291c64a1cc820aaae255160a",
     ".github/workflows/sports-strategy-research.yml": "ca9d21cf87c8ff88660771e89bfbbe88e91b57f5cfbeae2602a903db979d0732",
     ".github/workflows/stock-screener.yml": "c0d604a747894f6251aa48195871857f7bb9c5b29937657c6e1e367ab8c241b1",
     ".github/workflows/toto-runtime-smoke.yml": "001e80d23b65f5c43f98db5ff0f2ef879575b4ea476ca5efeacb5b2896ad43af",
@@ -79,7 +79,7 @@
     "market_research/sports_month_watchdog.py": "644ad0b565a2d751de8bea80ee809076157ce5b702a3adeff29710a2b038a56f",
     "market_research/sports_recovery.py": "d16711d1355b0a87d30c856f5a5f68eee6e9cbff62954e586d39c1355d5aa0e6",
     "market_research/sports_research/__init__.py": "99ba66df4af4ae13257b5993c0856eed62676a0c2ed6cc9f6b159ba6afaa2fba",
-    "market_research/sports_research/automation.py": "01ac2d2d16348a10498fa72d8d42e770c3c50fb0104028e44bdc40a165edae68",
+    "market_research/sports_research/automation.py": "9fc14ea21b62faf6cd2ede0139d58d5db95a697ab3fd5664be4c0042f68d019e",
     "market_research/sports_research/cli.py": "14ca103c8da26d8bcbdeaaff1875480f02b891ce6a6dd3be4706bd4af7c50693",
     "market_research/sports_research/data.py": "d4cbbbd2e1d0796d073e3ceec63191743775042088ecb57f27d5a7ce13a02b13",
     "market_research/sports_research/features.py": "407d5c35390bd11bad03e3ea93a3d089b5ffec139e6ca00454491163fa7ae153",
@@ -95,7 +95,7 @@
     "market_research/tests/test_game_p01_snapshot_limits.py": "1c117419c67c0213beccba2920553bb8fb07451c2e4926754e7404be5ae42dd8",
     "market_research/tests/test_native_sports.py": "51c5ef7d5da00fa8ce9785306971b918287545ff2e9187b48dda6afc965552af",
     "market_research/tests/test_sports_forward_recovery.py": "b46501e2356542d75c051c0b1544e5d55ce2caa4c5e02765560fae63751ddccc",
-    "market_research/tests/test_sports_research.py": "dbd838d86ee5bdab59218c6a15a9f7904f6e9c8dec98caa625e893978ed31bcb",
+    "market_research/tests/test_sports_research.py": "26b3b81e46bd3a6eef63fced361afbb13732659d03b177c79117c4f63db8ad93",
     "market_research/tests/test_sports_research_p99.py": "b08029acf45f2898bba5d864596ae4ca79e68ba95ab75d0376ed2549a7eed21d",
     "metaculus_bot/__init__.py": "bd732fa010dffb0eb2971533b5664d5813cf035c84e5627bd61dd31e10fda7cf",
     "metaculus_bot/api.py": "74cbb21d1d461e758cf4d50d65ce50c4d5d310fad9015b27f15727d7d4a914ab",
@@ -165,7 +165,7 @@
     "tests/test_toto_loading.py": "1e2a182ab22523e3a92583024d11bad1422abc3739fbcc30963e616797db5447",
     "market_research/recovery_seed.py": "54e5cb435ee942c49ade570c586f0274e8173aabfccbc1a8b903d23cedeeff31",
     "market_research/tests/test_recovery_seed.py": "75d4bc5630d4f5a37cebaaf761b0a5435701223a0c3d543533ee54f8932b67b5",
-    "docs/operations/forecast-state-recovery-2026-11-15.md": "2054581cf228fa5e8b2630609726d061c47a34bec81a7fa9a239bc9eb303c50a"
+    "docs/operations/forecast-state-recovery-2026-11-15.md": "0bbb57bb2e3c8de7ab27e54117ac0cea109c0e34f439d0f125d14b18bcc1ec0f"
   },
   "source_updates": [
     {
@@ -177,6 +177,16 @@
         ".github/workflows/sports-paper-validation.yml",
         "market_research/recovery_seed.py",
         "market_research/tests/test_recovery_seed.py",
+        "docs/operations/forecast-state-recovery-2026-11-15.md"
+      ]
+    },
+    {
+      "source_commit": "21957babd28423963bada6cb6d122350be1870cf",
+      "scope": "research diagnostic sidecar compatibility and downloadable recovery coverage",
+      "files": [
+        ".github/workflows/sports-paper-validation.yml",
+        "market_research/sports_research/automation.py",
+        "market_research/tests/test_sports_research.py",
         "docs/operations/forecast-state-recovery-2026-11-15.md"
       ]
     }

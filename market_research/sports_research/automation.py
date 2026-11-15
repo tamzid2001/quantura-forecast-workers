@@ -26,9 +26,9 @@ SOURCES = {
     "paper": ("quantura-games-p01-paper-stats", ".github/workflows/games-p01-paper.yml",
               {"stats.json", "paper-ledger.csv", "comparison-stats.json", "comparison-ledger.csv", "comparison-summary.md"}),
     "limit": ("quantura-games-p01-limit-paper-stats", ".github/workflows/games-p01-limit-paper.yml",
-              {"stats.json", "limit-ledger.csv"}),
+              {"stats.json", "limit-ledger.csv", "depth-shadow-stats.json", "depth-shadow-evidence.json"}),
     "month": ("sports-month-report", ".github/workflows/sports-month-backtest.yml",
-              {"REPORT.md", "report.json", "ledger.csv"})}
+              {"REPORT.md", "report.json", "ledger.csv", "catalog-recovery.json"})}
 
 
 def gh(path, binary=False):
