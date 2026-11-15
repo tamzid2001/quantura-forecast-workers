@@ -1,9 +1,12 @@
-name: Initialize retained public screener artifacts
+name: Restore missing verified public screener snapshots
 on:
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
+concurrency:
+  group: verified-public-snapshot-recovery
+  cancel-in-progress: false
 jobs:
   seed:
     runs-on: ubuntu-latest
@@ -13,20 +16,39 @@ jobs:
         feed: [stocks, games-kalshi-0, games-kalshi-1, games-polymarket_us-0, games-polymarket_us-1, perps-0, perps-1, perps-2, perps-3]
     env:
       GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
       FEED: ${{ matrix.feed }}
+      RECOVERY_RELEASE: forecast-state-recovery-20261115
+      RECOVERY_MANIFEST_SHA256: 786728c49306d5d9ee188ff0da159bf11f32d8ef5c7718b7057caab49c3499ea
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - run: python -m pip install requests
-      - run: |
-          mkdir -p seed
-          gh release download screener-bootstrap-seed --pattern "$FEED.json.gz" --dir seed
-          python -m market_research.public_snapshots --feed "$FEED" --seed "seed/$FEED.json.gz" --output published
-      - uses: actions/upload-artifact@v7
+      - name: Install bounded snapshot reader dependencies
+        run: python -m pip install --require-hashes -r requirements-screener-marketdata.lock
+      - name: Preserve any existing trusted feed
+        id: inspect
+        run: python -m market_research.recovery_seed --probe-feed "$FEED"
+      - name: Restore only the missing feed from reviewed source bytes
+        if: steps.inspect.outputs.restore == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/verified-recovery-seed"
+          gh release download "$RECOVERY_RELEASE" --pattern manifest.json --dir "$RUNNER_TEMP/verified-recovery-seed"
+          gh release download "$RECOVERY_RELEASE" --pattern "$FEED.json.gz" --dir "$RUNNER_TEMP/verified-recovery-seed"
+          python -m market_research.recovery_seed --key "$FEED" \
+            --seed-dir "$RUNNER_TEMP/verified-recovery-seed" \
+            --manifest-sha256 "$RECOVERY_MANIFEST_SHA256" \
+            --output "$RUNNER_TEMP/recovered-public"
+          echo "Restored a verified historical publication for $FEED. Source dates are unchanged; no model inference ran." >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve the restored publication under the canonical artifact identity
+        if: steps.inspect.outputs.restore == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: quantura-public-${{ matrix.feed }}
-          path: published/snapshot.json.gz
-          retention-days: 1
+          path: ${{ runner.temp }}/recovered-public/snapshot.json.gz
+          retention-days: 90
           if-no-files-found: error

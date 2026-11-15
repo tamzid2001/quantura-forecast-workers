@@ -16,11 +16,11 @@
     ".github/workflows/metaculus-watchdog.yml": "edfc270dc523b09ce6e7c3c552e8cef049859fa8b2d54a1ef35f8425b0653da6",
     ".github/workflows/metered-billing.yml": "2baf277442661b81348014d5d6d962ac4a49a620cdec88501081b76f8372028f",
     ".github/workflows/runtime-preflight-validation.yml": "4f7091d14d6ab7395ef0ca193ac464196df3a0beeb7794eb47563df74a0e5715",
-    ".github/workflows/screener-artifact-bootstrap.yml": "7e0cbba6dfe1f0ff414d085e664e5a355c1559531131f6a152a6057dfd598895",
+    ".github/workflows/screener-artifact-bootstrap.yml": "0d7028cd0d9a06ce9db9cb60a889f3fa43d682ba807b9b98025f04ee1f48c43c",
     ".github/workflows/sports-month-backtest.yml": "f400b9b9645ed1c1bd2de32ef77d0984a72aef8e0ee04f4ea1917ab9ea84843c",
     ".github/workflows/sports-month-watchdog.yml": "0c75a88cebf1f92256d03791e176dec8afc8015a0703c2cc97ad7f392f6d2a65",
-    ".github/workflows/sports-paper-validation.yml": "e083581730a18fe37b977eae98ff179c26bca18dbf66705b740279822c693a81",
-    ".github/workflows/sports-strategy-research.yml": "322e715b9d6569ab455b1d2a3f5c7bf319f8a38d7f1328a8b9a2fc2a685158bf",
+    ".github/workflows/sports-paper-validation.yml": "e8e6c3073626e596d54c63b4b2b65a561c1333a12e91cd8226c6bfb4a22d66d4",
+    ".github/workflows/sports-strategy-research.yml": "ca9d21cf87c8ff88660771e89bfbbe88e91b57f5cfbeae2602a903db979d0732",
     ".github/workflows/stock-screener.yml": "c0d604a747894f6251aa48195871857f7bb9c5b29937657c6e1e367ab8c241b1",
     ".github/workflows/toto-runtime-smoke.yml": "001e80d23b65f5c43f98db5ff0f2ef879575b4ea476ca5efeacb5b2896ad43af",
     ".gitignore": "f90e6c1c1c7f24d481b2ab879060fea41781842e5fdcbac52e81c800174051e6",
@@ -162,6 +162,23 @@
     "scripts/weekly_screener.py": "46a367076cdb1bb5939190ae81530a58371d5f87ea0a7845f1d7504079115859",
     "tests/runtime-controls-coverage.ini": "a39d49ff753ebc9e7968df289063ba4ebe396c001018967046f31b5fab53fe23",
     "tests/test_service_preflight.py": "cc3b3adbad48de6ecf9d621a0b5f23df78432cf9eed90ee612ffd08bd5ab5fa5",
-    "tests/test_toto_loading.py": "1e2a182ab22523e3a92583024d11bad1422abc3739fbcc30963e616797db5447"
-  }
+    "tests/test_toto_loading.py": "1e2a182ab22523e3a92583024d11bad1422abc3739fbcc30963e616797db5447",
+    "market_research/recovery_seed.py": "54e5cb435ee942c49ade570c586f0274e8173aabfccbc1a8b903d23cedeeff31",
+    "market_research/tests/test_recovery_seed.py": "75d4bc5630d4f5a37cebaaf761b0a5435701223a0c3d543533ee54f8932b67b5",
+    "docs/operations/forecast-state-recovery-2026-11-15.md": "2054581cf228fa5e8b2630609726d061c47a34bec81a7fa9a239bc9eb303c50a"
+  },
+  "source_updates": [
+    {
+      "source_commit": "039e4c285d225f49a0f19442ab7b8e9cb5d16499",
+      "scope": "incremental verified state recovery; preserves newer independent runtime sports changes",
+      "files": [
+        ".github/workflows/screener-artifact-bootstrap.yml",
+        ".github/workflows/sports-strategy-research.yml",
+        ".github/workflows/sports-paper-validation.yml",
+        "market_research/recovery_seed.py",
+        "market_research/tests/test_recovery_seed.py",
+        "docs/operations/forecast-state-recovery-2026-11-15.md"
+      ]
+    }
+  ]
 }
