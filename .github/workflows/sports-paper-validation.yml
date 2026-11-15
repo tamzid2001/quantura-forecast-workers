@@ -106,5 +106,7 @@ jobs:
           path: |
             artifacts/hourly-paper-coverage.xml
             artifacts/sports-recovery-coverage.xml
+            recovery-coverage.xml
+            recovery-lcov.info
           if-no-files-found: error
           retention-days: 30

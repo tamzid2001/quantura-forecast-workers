@@ -506,6 +506,31 @@ class AutomationTests(unittest.TestCase):
                   self.assertRaisesRegex(ValueError, "REQUIRED_RESEARCH_INPUT")):
                 automation.collect(temp)
 
+    def test_collect_accepts_declared_diagnostic_sidecars_without_mixing_sources(self):
+        limit = {"stats.json": b'{"mode":"paper"}', "limit-ledger.csv": b"filled\n",
+                 "depth-shadow-stats.json": b'{"diagnostic":"depth"}',
+                 "depth-shadow-evidence.json": b'{"diagnostic":"quotes"}'}
+        month = {"REPORT.md": b"Historical replay", "report.json": b'{"mode":"retrospective_paper_only"}',
+                 "ledger.csv": b"quantity\n", "catalog-recovery.json": b'{"diagnostic":"catalog"}'}
+        with tempfile.TemporaryDirectory() as temp:
+            with (patch.object(automation, "latest", side_effect=[None, {"id": 2}, {"id": 3}]),
+                  patch.object(automation, "gh", side_effect=[archive(limit), archive(month)])):
+                automation.collect(temp)
+            for source, members in (("limit", limit), ("month", month)):
+                for name, body in members.items():
+                    self.assertEqual((Path(temp)/source/name).read_bytes(), body)
+            trades, sources = data.load_inputs(temp)
+            self.assertEqual(trades, [])
+            self.assertEqual(sources["paper"]["status"], "missing")
+            self.assertEqual(sources["limit"]["status"], "available")
+            self.assertEqual(sources["month"]["status"], "available")
+        # Additional filenames remain rejected, even beside valid core reports.
+        with tempfile.TemporaryDirectory() as temp:
+            with (patch.object(automation, "latest", side_effect=[None, {"id": 2}]),
+                  patch.object(automation, "gh", return_value=archive({**limit, "unexpected.json": b"{}"})),
+                  self.assertRaisesRegex(ValueError, "INVALID_RESEARCH_ARCHIVE_MEMBER")):
+                automation.collect(temp)
+
     def test_automation_main_writes_report_and_checkpoints_registration_before_failure(self):
         now = BASE+4000
         with tempfile.TemporaryDirectory() as temp:

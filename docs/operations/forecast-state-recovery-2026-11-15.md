@@ -94,3 +94,29 @@ nor research enables live exchange orders or changes billing.
 The runtime contains newer independent sports changes. Apply this repair as an
 incremental export, preserving those files. Its manifest records the source
 commit and targeted file hashes rather than claiming a fresh full export.
+
+## Rollout receipts
+
+Runtime PR 29 merged as `fd12017597a4510b8059f51dd0b5c046d2e402cb`.
+Recovery release hashes and lengths were checked against all eleven uploaded
+GitHub release assets. Snapshot restore run 43775669028 succeeded: five missing
+feeds restored; four healthy games feeds preserved.
+
+Registry restoration run 43775671428 succeeded. Its downloaded `registry.json`
+matched the original byte hash
+`dda49739793d24a523128335062d1b9dd32d886e269bedc7823e082ea35941b8`.
+Normal analysis run 43775769012 then revealed a separate report compatibility
+issue: the current official limit report includes `depth-shadow-stats.json`
+and `depth-shadow-evidence.json`, and the historical report includes
+`catalog-recovery.json`. The research archive allowlist now permits those exact
+diagnostic filenames, retaining size/path limits and rejecting other files.
+Diagnostics are preserved as evidence; only the original canonical ledgers
+enter research trade normalization. A regression test exercises both actual
+archive layouts, missing-paper reporting, and rejection of unknown sidecars.
+
+The recovery Cobertura and LCOV files are retained alongside the existing
+coverage artifact so CI evidence remains downloadable.
+
+Follow-up validation: 85 tests / 53 subtests passed in canonical source and
+88 tests / 59 subtests passed in the runtime, including the sidecar regression.
+Combined recovery/research coverage exceeded the enforced 90% threshold.
