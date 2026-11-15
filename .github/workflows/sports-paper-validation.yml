@@ -41,6 +41,19 @@ jobs:
           python-version: '3.12'
       - name: Install CPU-only validation tools
         run: python -m pip install --no-cache-dir pytest==9.1.1 pytest-cov==7.1.0 coverage==7.17.0 httpx==0.28.1 numpy==2.5.4 pandas==3.1.0 pydantic==2.12.3 requests==2.33.0
+      - name: Validate reviewed recovery bytes without resetting history
+        run: |
+          python -m pytest -q market_research/tests/test_recovery_seed.py \
+            --cov=market_research.recovery_seed --cov-branch --cov-fail-under=90 \
+            --cov-report=term-missing --cov-report=xml:recovery-coverage.xml --cov-report=lcov:recovery-lcov.info
+          python - <<'PYRECOVERY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          report=ET.parse('recovery-coverage.xml').getroot()
+          assert int(report.attrib['lines-valid'])>0 and float(report.attrib['line-rate'])>=.90
+          assert float(report.attrib['branch-rate'])>=.70
+          assert 'end_of_record' in Path('recovery-lcov.info').read_text()
+          PYRECOVERY
       - name: Test selection, recovery, accounting and frozen research compatibility
         run: |
           env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT python -m pytest -q \

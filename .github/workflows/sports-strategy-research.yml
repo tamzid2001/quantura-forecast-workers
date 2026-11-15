@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '25 6 * * *'
   workflow_dispatch:
+    inputs:
+      restore_registry:
+        description: Restore the reviewed original registration only; run normal analysis separately afterward
+        type: boolean
+        default: false
+run-name: ${{ inputs.restore_registry && 'Restore original sports research registration' || 'Sports strategy statistical review' }}
 permissions:
   contents: read
   actions: read
@@ -18,6 +24,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PYTHONUNBUFFERED: '1'
+      RECOVERY_RELEASE: forecast-state-recovery-20261115
+      RECOVERY_MANIFEST_SHA256: 786728c49306d5d9ee188ff0da159bf11f32d8ef5c7718b7057caab49c3499ea
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -52,7 +60,24 @@ jobs:
           assert 'SF:' in lcov and 'DA:' in lcov and 'end_of_record' in lcov
           print('Research line coverage:', report.attrib['line-rate'], 'branch:', report.attrib['branch-rate'])
           PY
+      - name: Recover the original frozen registration from its verified published report
+        if: github.event_name == 'workflow_dispatch' && inputs.restore_registry
+        run: |
+          python - <<'PY'
+          from market_research.sports_research.automation import latest, WORKFLOW
+          if latest('quantura-sports-research-registry-v1', WORKFLOW, checkpoint=True):
+              raise RuntimeError('REGISTRY_ALREADY_AVAILABLE_DO_NOT_RESET')
+          PY
+          mkdir -p "$RUNNER_TEMP/verified-recovery-seed"
+          gh release download "$RECOVERY_RELEASE" --pattern manifest.json --dir "$RUNNER_TEMP/verified-recovery-seed"
+          gh release download "$RECOVERY_RELEASE" --pattern sports-research-registry.json --dir "$RUNNER_TEMP/verified-recovery-seed"
+          python -m market_research.recovery_seed --key sports-research-registry \
+            --seed-dir "$RUNNER_TEMP/verified-recovery-seed" \
+            --manifest-sha256 "$RECOVERY_MANIFEST_SHA256" \
+            --output "$RUNNER_TEMP/sports-research"
+          echo 'Restored the original registration, design and dates. This restore-only run did not evaluate outcomes or produce a new research report.' >> "$GITHUB_STEP_SUMMARY"
       - name: Analyze verified receipts and preserve the frozen shadow experiment
+        if: inputs.restore_registry != true
         run: python -m market_research.sports_research.automation --output "$RUNNER_TEMP/sports-research"
       - name: Show the statistical review
         if: always()
